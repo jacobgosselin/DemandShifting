@@ -1,0 +1,23 @@
+# Data files (keep in Google Drive, not GitHub)
+*.csv
+*.dta
+*.xlsx
+*.xls
+*.docx
+*.pdf
+
+# Python cache
+__pycache__/
+*.pyc
+*.nbi
+*.nbc
+
+# Numba compiled cache
+solved_eqm/
+
+# macOS
+.DS_Store
+.Rhistory
+
+# Lock files
+.~lock.*

@@ -1,6 +1,5 @@
 from solve_eqm import *
 from integrate_dist import *
-from compute_coefs_byyear_np import compute_coefs_byyear_numpy
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -38,32 +37,30 @@ exit_rate = struct_params['exit_rate'].iloc[0]
 
 print(f"AR(1) parameters for productivity: rho = {rho:.4f}, sigma_eps = {sigma_eps:.4f}")
 z_grid, pi, Pi = discretize_productivity(rho, sigma_eps, 10)
-m_grid = discretize_choices(1e-3, 100, 100, type = "exp")
-k_grid = discretize_choices(1e-3, 100, 100, type = "exp")
+m_grid = discretize_choices(1e-3, 10, 100, type = "exp")
+k_grid = discretize_choices(1e-3, 10, 100, type = "exp")
 # Create solved_eqm directory if it doesn't exist
 os.makedirs(SOLVED_EQM_DIR, exist_ok=True)
 
-# Load calibrated params (alpha_a, alpha_k, z_k, sigma, delta_m) produced by calibrate_investment_params.py
-# gamma_k and gamma_l are fixed structural parameters read from EqmParams defaults.
+# Load calibrated params (alpha_a, alpha_k, sigma) produced by calibrate_investment_params.py
 calib_path = f"{MAIN_DIR}/code/3_ComputationalEx_NEW/calibrated_investment_params.csv"
-if os.path.exists(calib_path):
+use_calib_values = True
+if os.path.exists(calib_path) & use_calib_values:
     calib_vals = np.loadtxt(calib_path, delimiter=",", skiprows=1)
     calib_vals = np.atleast_1d(calib_vals)
-    alpha_a_cal, alpha_k_cal, z_k_cal, sigma_cal, delta_m_cal = (
-        calib_vals[0], calib_vals[1], calib_vals[2], calib_vals[3], calib_vals[4]
+    alpha_a_cal, alpha_k_cal, sigma_cal = (
+        calib_vals[0], calib_vals[1], calib_vals[2]
     )
-    z_a_cal = 1.0  # normalized
     print(
         f"Loaded calibrated params: alpha_a={alpha_a_cal:.4f}, "
-        f"alpha_k={alpha_k_cal:.4f}, z_k={z_k_cal:.4f}, "
-        f"sigma={sigma_cal:.4f}, delta_m={delta_m_cal:.4f}, z_a={z_a_cal:.4f} (normalized)"
+        f"alpha_k={alpha_k_cal:.4f}, sigma={sigma_cal:.4f}"
     )
 else:
     print(
         "Warning: calibrated_investment_params.csv not found; "
-        "falling back to defaults: alpha_a=0.5, alpha_k=0.5, z_k=1, z_a=1, sigma=4, delta_m=0.15."
+        "falling back to defaults: alpha_a=0.5, alpha_k=0.5, sigma=4."
     )
-    alpha_a_cal, alpha_k_cal, z_k_cal, z_a_cal, sigma_cal, delta_m_cal = 0.5, 0.5, 1.0, 1.0, 4.0, 0.15
+    alpha_a_cal, alpha_k_cal, sigma_cal = 0.5, 0.5, 4.0
 
 # gamma_k and gamma_l are fixed structural parameters (not calibrated).
 # Loaded from structural_parameters.csv (computed in 3c_exog_params.R).
@@ -78,8 +75,9 @@ print(
 # -------------------------------------------------------------------------
 # Tracking moments
 # -------------------------------------------------------------------------
-# Compute coefs_byyear from calibrated delta_m (fast JIT call; no R subprocess)
-coefs_byyear = compute_coefs_byyear_numpy(delta_m_cal)
+# Load phi trajectory from R output (4b_mstock_coef.R)
+_coefs_df    = pd.read_csv(f'{MAIN_DIR}/data/clean/sales_elasticity_m_by_year.csv')
+coefs_byyear = _coefs_df[['year', 'coef']].to_numpy()  # shape (T, 2)
 
 # phi back-out uses the arbitrary-scale Cobb-Douglas structural mapping:
 #   sales_elasticity = (1+phi) / ((1-gamma_l)*sigma + gamma_l)
@@ -107,9 +105,6 @@ for phi in phi_track_values:
             sigma=sigma_cal,
             alpha_a=alpha_a_cal,
             alpha_k=alpha_k_cal,
-            z_k=z_k_cal,
-            z_a=z_a_cal,
-            delta_m=delta_m_cal,
             gamma_k=gamma_k_cal,
             gamma_l=gamma_l_cal,
         )

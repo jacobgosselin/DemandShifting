@@ -69,6 +69,7 @@ class EqmParams:
     phi: float = 0.0
     invest_m: bool = True  # whether to allow customer investment
     invest_k: bool = True  # whether to allow capital investment
+    fixed_cost: float = 0.0  # fixed operating cost deducted from earnings; lump-sum transfer to HH, does not affect equilibrium
 
 def eqm_residuals(x, m_grid, k_grid, z_grid, Pi, p: EqmParams, verbose=True):
     c_agg, W, P_M = x

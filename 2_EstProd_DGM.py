@@ -39,7 +39,7 @@ vars_how['k'] = ['purge','dynamic','fixed'] # capital
 t0 = time()
 
 # import data
-dta_deep=pd.read_csv('data/intermediate/compustat_procMU.csv', parse_dates=[0])
+dta_deep=pd.read_csv('data/intermediate/compustat_preMU.csv', parse_dates=[0])
 
 # keep relevant variables
 dta_deep = dta_deep[['firmid','date','sector','sale','varcost','capital','fixcost','v','k','y','x']]
@@ -125,7 +125,7 @@ print('')
 print('Exporting..')
 
 # import data
-dta_export=pd.read_csv('data/intermediate/compustat_procMU.csv', parse_dates=[0])
+dta_export=pd.read_csv('data/intermediate/compustat_preMU.csv', parse_dates=[0])
 # set date to integer, not datetime
 # dta_export['date'] = dta_export['date'].dt.year
                 
@@ -136,15 +136,18 @@ dta_export = dta_export.merge(dta_merge01
 
 dta_export = dta_export.sort_values(by=['sector','firmid','date']) # sorting
 dta_check = dta_export.head(100) # to check the data
-dta_export.to_csv('data/clean/compustat_clean.csv', index=False)
+dta_export.to_csv('data/intermediate/compustat_postMU.csv', index=False)
 
-dta_ar1 = dta_ar1.sort_values(by=['sector'])
-dta_ar1.to_csv('data/clean/ar1_productivity.csv', index=False)
-
-dta_betas.to_csv('data/clean/betas_production.csv', index=False)
-
-prod_params = dta_betas[['sector', 'beta_v', 'beta_k']].rename(columns={'beta_v': 'beta_l'})
-prod_params.to_csv('data/clean/prod_fncts_params.csv', index=False)
+# Consolidate AR(1) and production function parameters into ACF_bysector.csv
+acf_bysector = dta_betas[['sector', 'beta_v', 'beta_k']].rename(
+    columns={'sector': 'naics_2digit', 'beta_v': 'beta_l', 'beta_k': 'beta_k'}
+)
+acf_bysector = acf_bysector.merge(
+    dta_ar1.rename(columns={'sector': 'naics_2digit'})[['naics_2digit', 'rho', 'sigma_xi']],
+    on='naics_2digit'
+)
+acf_bysector = acf_bysector.sort_values(by='naics_2digit')
+acf_bysector.to_csv('data/clean/ACF_bysector.csv', index=False)
 
 print('')
 print('Files exported')

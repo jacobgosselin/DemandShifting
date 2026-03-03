@@ -16,7 +16,9 @@ wrds <- dbConnect(Postgres(),
 res <- dbSendQuery(wrds, "select funda.conm, company.fic, company.sic, company.ipodate, funda.gvkey, funda.cusip, funda.datadate, funda.fyear,
 company.naics, funda.ebitda, funda.aqc, funda.at, funda.che, funda.dlc, funda.dltt, funda.dvp, funda.lct, funda.lt, funda.oiadp,
 funda.ppegt, funda.ppent, funda.sale, funda.xint, funda.mkvalt, funda.ni,  funda.dp, funda.invfg, funda.cogs, funda.dd1, funda.xopr,
-funda.xsga, funda.np, funda.intan, funda.capx, funda.xrd, funda.rdip, funda.fyear, funda.xstfws, funda.emp, funda.DVPSP_F, funda.MKVALT, funda.PRCC_F, funda.INVRM, company.state, funda.indfmt, funda.revt, funda.csho, funda.pi, funda.oiadp, funda.xint, funda.spi, funda.nopi, funda.oibdp, funda.revt, funda.xopr, funda.txpd, funda.dlc, funda.act,
+funda.xsga, funda.np, funda.intan, funda.capx, funda.xrd, funda.rdip, funda.fyear, funda.xstfws, funda.emp, funda.DVPSP_F, funda.MKVALT, 
+funda.PRCC_F, funda.INVRM, company.state, funda.indfmt, funda.revt, funda.csho, funda.pi, funda.oiadp, funda.xint, funda.spi, funda.nopi, 
+funda.oibdp, funda.revt, funda.xopr, funda.txpd, funda.dlc, funda.act,
 ccm.lpermno as permno
                     FROM comp.funda
                     JOIN comp.company

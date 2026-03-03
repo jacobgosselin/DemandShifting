@@ -92,7 +92,7 @@ compute_coefs_byyear <- function(data, med_preIPO_growth, delta_m = 0.15) {
 
 # Compute coefficients using full firm histories ----
 coef_year_delta15_check <- compute_coefs_byyear(analysis_data_mstock_input, med_preIPO_growth, delta_m = 0.15)
-coef_year <- compute_coefs_byyear(analysis_data_mstock_input, med_preIPO_growth, delta_m_use)
+coef_year <- compute_coefs_byyear(analysis_data_mstock_input, med_preIPO_growth, 0.15)
 cat("Years in coefficient table:", nrow(coef_year), "\n")
 
 # Print coef_year for verification

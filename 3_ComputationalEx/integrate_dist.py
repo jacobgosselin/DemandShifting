@@ -92,6 +92,7 @@ def calc_value(m, k, z, m_prime, k_prime, eqm, value_type):
     delta_m = eqm['params']['delta_m']
     delta_k = eqm['params']['delta_k']
     phi = eqm['params']['phi']
+    fixed_cost = eqm['params'].get('fixed_cost', 0.0)
     # compute earnings
     c_val = c_i_star(m, k, z, c_agg, sigma, W, gamma_k, gamma_l, phi)
     # With phi: M^(1+phi) in demand, so price formula uses m^((1+phi)/sigma)
@@ -101,7 +102,7 @@ def calc_value(m, k, z, m_prime, k_prime, eqm, value_type):
     L_a_i = L_a(adv, alpha_a, z_a)
     L_k_i = L_k(inv, alpha_k, z_k)
     L_s_i = L_s(c_val, z, k, gamma_k, gamma_l)
-    earnings = p_val*c_val - W * (L_s_i + L_a_i)
+    earnings = p_val*c_val - W * (L_s_i + L_a_i) - fixed_cost
     revenue = p_val * c_val
     adv_ratio = (W*L_a_i) / revenue
     inv_ratio = (W*L_k_i) / revenue

@@ -72,14 +72,6 @@ compustat_preMU <- compustat_preMU %>%
          etr = txpd/pi,
          etr = ifelse(etr < 0, 0, ifelse(etr > 1, 1, etr)))
          
-save(compustat_preMU, file = "data/intermediate/compustat_preMU.RData")
-# write.csv(compustat_preMU, "data/intermediate/compustat_preMU.csv", row.names = FALSE)
-# library(haven)
-# library(tidyverse)
-# # clean column names
-# compustat_preMU <- compustat_preMU %>%
-#   rename_with(~ gsub("[^[:alnum:]_]", "", .), everything())
-# write_dta(compustat_preMU, "data/intermediate/compustat_preMU.dta")
 
 # load 100y tax data
 tax_100y <- read_dta("data/raw/100Y_DATA.dta")
@@ -193,5 +185,4 @@ compustat_procMU <- compustat_preMU %>%
   ) %>%
   arrange(sector, firmid, date)
 
-write.csv(compustat_procMU, "data/intermediate/compustat_procMU.csv", row.names = FALSE)
-save(compustat_procMU, file = "data/intermediate/compustat_procMU.RData")
+write.csv(compustat_procMU, "data/intermediate/compustat_preMU.csv", row.names = FALSE)

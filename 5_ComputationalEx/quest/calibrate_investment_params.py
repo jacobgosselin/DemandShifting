@@ -157,9 +157,9 @@ def obj_joint(x):
     med_capx = median_inv_ratio(m_grid, k_grid, z_grid, eqm_phi0)
 
     res = np.array([
-        pct0     - neg_ebitda_base_pct,
-        pctT     - neg_ebitda_final_pct,
-        med_capx - med_capx_init,
+        (pct0     - neg_ebitda_base_pct)/100,
+        (pctT     - neg_ebitda_final_pct)/100,
+        (med_capx - med_capx_init),
     ])
     print(
         "  sig={:.4f} ak={:.4f} aa={:.4f} | "

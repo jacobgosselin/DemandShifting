@@ -4,7 +4,7 @@
 library(httr)
 
 # Create download directory if it doesn't exist
-download_dir <- "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/code/IRS_Data/irs_data_downloaded"
+download_dir <- "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/data/raw/irs_data_downloaded"
 if (!dir.exists(download_dir)) {
   dir.create(download_dir)
 }

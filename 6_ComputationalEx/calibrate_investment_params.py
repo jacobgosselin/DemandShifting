@@ -203,7 +203,7 @@ if __name__ == '__main__':
         tol=1e-4,
         mutation=(0.5, 1.0),
         recombination=0.7,
-        # workers=-1,          # parallel across all available CPUs (set by --cpus-per-task in SLURM)
+        workers=-1,          # parallel across all available CPUs (set by --cpus-per-task in SLURM)
         updating='deferred', # required for workers > 1; set explicitly to suppress scipy warning
         polish=False,        # we polish with least_squares below
         disp=True,

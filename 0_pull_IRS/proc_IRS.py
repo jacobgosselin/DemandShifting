@@ -1,11 +1,10 @@
 # processing IRS data
-
 import os
 import xlrd
 import pandas as pd
 
 # Directory with downloaded files
-data_dir = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/code/IRS_Data2/irs_data_downloaded"
+data_dir = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/data/raw/irs_data_downloaded"
 
 # ==============================================================================
 # Process Table 22 files (1994-2013)
@@ -113,6 +112,7 @@ for year in years_table53_54:
 # ==============================================================================
 
 df = pd.DataFrame(results)
+print(df)
 df = df.sort_values('year').reset_index(drop=True)
 df['perc_neg_earnings'] = 1 - (df['returns_with_net_income'] / df['total_returns'])
 

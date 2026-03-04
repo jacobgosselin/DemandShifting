@@ -26,7 +26,7 @@ FIGURES_DIR = '/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosse
 SOLVED_EQM_DIR = '/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/code/3_ComputationalEx_NEW/solved_eqm'
 
 # load structural parameters
-struct_params = pd.read_csv(f'{MAIN_DIR}/data/clean/structural_parameters.csv')
+struct_params = pd.read_csv(os.path.join(os.path.dirname(__file__), "structural_parameters.csv"))
 rho = struct_params['rho'].iloc[0]
 sigma_eps = struct_params['sigma_xi'].iloc[0]
 exit_rate = struct_params['exit_rate'].iloc[0]
@@ -43,7 +43,7 @@ k_grid = discretize_choices(1e-3, 10, 100, type = "exp")
 os.makedirs(SOLVED_EQM_DIR, exist_ok=True)
 
 # Load calibrated params (alpha_a, alpha_k, sigma) produced by calibrate_investment_params.py
-calib_path = f"{MAIN_DIR}/code/3_ComputationalEx_NEW/calibrated_investment_params.csv"
+calib_path = os.path.join(os.path.dirname(__file__), "calibrated_investment_params.csv")
 use_calib_values = True
 if os.path.exists(calib_path) & use_calib_values:
     calib_vals = np.loadtxt(calib_path, delimiter=",", skiprows=1)

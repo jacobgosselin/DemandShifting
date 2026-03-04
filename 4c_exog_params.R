@@ -1,4 +1,5 @@
 setwd("/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings")
+REPO_DIR <- "/Users/jacobgosselin/Documents(local)/GitHub/DemandShifting"
 library(dplyr)
 library(lubridate)
 
@@ -77,7 +78,7 @@ struct_data$med_capx_sale_negebitda <- capx_sale_negebitda_median
 struct_data$neg_ebitda_base         <- neg_ebitda_base
 struct_data$neg_ebitda_final        <- neg_ebitda_final
 
-write.csv(struct_data, "data/clean/structural_parameters.csv", row.names = FALSE)
+write.csv(struct_data, file.path(REPO_DIR, "5_ComputationalEx", "structural_parameters.csv"), row.names = FALSE)
 
 cat("4c_exog_params.R complete.\n")
 cat("rho:", struct_data$rho, "  sigma_xi:", struct_data$sigma_xi, "\n")

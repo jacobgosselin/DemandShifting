@@ -64,7 +64,9 @@ analysis_data <- analysis_data %>%
   group_by(naics_2digit, date) %>%
   mutate(
     m_inv = sga / sum(sga, na.rm = TRUE)
-  )
+  ) %>%
+  group_by(gvkey) %>%
+  arrange(gvkey, date) 
 
 # Step 2: Pre-IPO growth rate of m_inv ------------------------------------
 
@@ -85,6 +87,7 @@ preIPO_subset <- analysis_data %>%
   )
 
 med_preIPO_growth <- median(preIPO_subset$m_inv_growth_preIPO, na.rm = TRUE)
+avg_preIPO_growth <- mean(preIPO_subset$m_inv_growth_preIPO, trim = 0.05, na.rm = TRUE)
 
 # Step 3: Compute founding_imputed, age, and m_stock on full panel --------
 # IMPORTANT: m_stock must be built on full firm history before analysis filters
@@ -98,25 +101,27 @@ ritter_subset <- analysis_data %>%
   reframe(dist_firstobs_founding = first(dist_firstobs_founding))
 
 med_dist_firstobs <- median(ritter_subset$dist_firstobs_founding, na.rm = TRUE)
-
+avg_dist_firstobs <- mean(ritter_subset$dist_firstobs_founding, trim = 0.05, na.rm = TRUE)
 delta_m <- 0.15  # fixed; not a calibration target
 
 analysis_data <- analysis_data %>%
   group_by(gvkey) %>%
   arrange(gvkey, date) %>%
   mutate(
-    founding_imputed = ifelse(is.na(founding), date - med_dist_firstobs, founding),
+    founding_imputed = ifelse(is.na(founding), date - avg_dist_firstobs, founding),
     age = date - founding_imputed,
     m_stock = {
       delta <- delta_m
-      g     <- med_preIPO_growth
+      g     <- avg_preIPO_growth
       r     <- (1 - delta) / (1 + g)
       init_val <- first(m_inv) * (1 - r^first(age)) / (1 - r)
       Reduce(function(prev, curr) (1 - delta) * prev + curr,
              m_inv[-1],
              init = init_val,
              accumulate = TRUE)
-    }
+    },
+    m_stock_lag = lag(m_stock),
+    m_stock_lag2 = lag(m_stock, 2)
   ) %>%
   ungroup()
 

@@ -1,0 +1,30 @@
+AR(1) parameters for productivity: rho = 0.8157, sigma_eps = 0.0388
+
+Production function parameters (fixed):
+  gamma_k = 0.1120,  gamma_l = 0.8559
+
+Calibration targets:
+  med_capx  @ phi0       = 0.0451
+  pct_neg   @ phi0       = 10.8529%
+  pct_neg   @ phiT       = 28.0581%
+
+No existing calibrated parameters found; using defaults.
+
+Initial phi endpoints: phi0=0.1898, phiT=0.3388
+Solution: {'C_agg': 0.7628117498755576} {'C_impl': 0.7628117498755564} {'Customers': 0.9999999999999979} {'Labor': 0.999999999999997} {'Adv': 0.3650386570194033}
+VF EGM iter 10: sup-norm diff = 1.504e-02
+VF EGM iter 20: sup-norm diff = 8.107e-04
+VF EGM iter 30: sup-norm diff = 5.302e-05
+VF EGM iter 40: sup-norm diff = 3.521e-06
+Converged after 45 iterations with sup-norm diff = 9.052e-07
+Solution: {'C_agg': 0.7346335174017881} {'C_impl': 0.7346335172893534} {'Customers': 1.0000000004311647} {'Labor': 1.000000000128871} {'Adv': 0.3780781156686173}
+VF EGM iter 10: sup-norm diff = 1.885e-02
+VF EGM iter 20: sup-norm diff = 1.068e-03
+VF EGM iter 30: sup-norm diff = 6.035e-05
+VF EGM iter 40: sup-norm diff = 3.787e-06
+Converged after 45 iterations with sup-norm diff = 9.731e-07
+
+============================================================
+Phase 1: Differential Evolution (global search)
+  Targets: med_capx=0.0451, pct_neg@phi0=10.85%, pct_neg@phiT=28.06%
+============================================================

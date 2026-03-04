@@ -1,4 +1,5 @@
 setwd("/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings")
+REPO_DIR <- "/Users/jacobgosselin/Documents(local)/GitHub/DemandShifting"
 library(fixest)
 library(dplyr)
 library(ggplot2)
@@ -24,6 +25,11 @@ reg_data <- analysis_data %>%
     !is.infinite(log_sale) & !is.infinite(log_m_stock)
   ) %>%
   group_by(gvkey) %>%
+  arrange(gvkey, date) %>%
+  mutate(
+    lag_log_m_stock = log(m_stock_lag),
+    lag_log_m_stock2 = log(m_stock_lag2)
+  ) %>%
   filter(n() > 1) %>%
   ungroup() %>%
   group_by(date, naics_2digit) %>%
@@ -32,14 +38,14 @@ reg_data <- analysis_data %>%
 
 # Two-way FE regression with year-interacted log(m_stock) ----
 reg <- feols(
-  log(sale) ~ log(m_stock):i(date) | date:naics_2digit + gvkey,
+  log_sale ~ log_m_stock:i(date) | date:naics_2digit + gvkey,
   data = reg_data
 )
 reg <- summary(reg, se = "hetero")
 
 # Extract coefficients and confidence intervals ----
 coef_year <- data.frame(
-  year = as.numeric(gsub("log\\(m_stock\\):date::", "", names(coef(reg)))),
+  year = as.numeric(gsub("log_m_stock:date::", "", names(coef(reg)))),
   coef = coef(reg),
   se   = se(reg)
 ) %>%
@@ -66,7 +72,7 @@ ggplot(coef_year, aes(x = year, y = coef)) +
 ggsave("figures/sales_elasticity_m_by_year.pdf", width = 10, height = 10)
 
 # Save coefficients ----
-write.csv(coef_year, "data/clean/sales_elasticity_m_by_year.csv", row.names = FALSE)
+write.csv(coef_year, file.path(REPO_DIR, "5_ComputationalEx", "sales_elasticity_m_by_year.csv"), row.names = FALSE)
 
 cat("4b_mstock_coef.R complete.\n")
 cat("Years in coefficient table:", nrow(coef_year), "\n")

@@ -3,7 +3,7 @@ from integrate_dist import median_adv_ratio, median_inv_ratio, pct_negative
 import numpy as np
 import pandas as pd
 import os
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, differential_evolution
 
 
 # -----------------------------------------------------------------------------
@@ -12,7 +12,7 @@ from scipy.optimize import least_squares
 
 MAIN_DIR = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings"
 
-struct_params = pd.read_csv(f"{MAIN_DIR}/data/clean/structural_parameters.csv")
+struct_params = pd.read_csv(os.path.join(os.path.dirname(__file__), "structural_parameters.csv"))
 rho              = struct_params["rho"].iloc[0]
 sigma_eps        = struct_params["sigma_xi"].iloc[0]
 exit_rate        = struct_params["exit_rate"].iloc[0]
@@ -39,7 +39,7 @@ print(f"\nProduction function parameters (fixed):")
 print(f"  gamma_k = {gamma_k:.4f},  gamma_l = {gamma_l:.4f}")
 
 # Load phi trajectory from R output (4b_mstock_coef.R)
-_coefs_df   = pd.read_csv(f"{MAIN_DIR}/data/clean/sales_elasticity_m_by_year.csv")
+_coefs_df   = pd.read_csv(os.path.join(os.path.dirname(__file__), "sales_elasticity_m_by_year.csv"))
 coefs_fixed = _coefs_df[["year", "coef"]].to_numpy()  # shape (T, 2)
 
 # -----------------------------------------------------------------------------
@@ -56,7 +56,7 @@ print(f"  pct_neg   @ phiT       = {neg_ebitda_final_pct:.4f}%")
 # -----------------------------------------------------------------------------
 
 out_path = os.path.join(
-    MAIN_DIR, "code", "3_ComputationalEx_NEW", "calibrated_investment_params.csv"
+    os.path.dirname(__file__), "calibrated_investment_params.csv"
 )
 
 sigma_init   = 4.0
@@ -114,7 +114,9 @@ def _solve_eqm(phi_val, sigma, alpha_a, alpha_k, warm_start=None):
     return eqm
 
 # -----------------------------------------------------------------------------
-# Calibration: (sigma, alpha_a, alpha_k) via least_squares
+# Calibration: (sigma, alpha_a, alpha_k)
+#   Phase 1 — Differential Evolution (global, gradient-free)
+#   Phase 2 — least_squares refinement (local, from DE best point)
 #   Residuals:
 #     pct_neg  @ phi0  =  neg_ebitda_base_pct
 #     pct_neg  @ phiT  =  neg_ebitda_final_pct
@@ -167,18 +169,68 @@ def obj_joint(x):
     return res
 
 
+_BOUNDS_LOW  = [1.0,  1e-3, 1e-3]
+_BOUNDS_HIGH = [10.0, 0.99, 0.99]
+
+def _obj_scalar(x):
+    """Scalar sum-of-squares objective for DE (each worker gets its own process copy of _ws)."""
+    return float(np.sum(obj_joint(x) ** 2))
+
+# -----------------------------------------------------------------------------
+# Phase 1: Differential Evolution — global search
+# -----------------------------------------------------------------------------
+
 print("\n" + "=" * 60)
-print("Joint calibration: (sigma, alpha_a, alpha_k) via least_squares")
+print("Phase 1: Differential Evolution (global search)")
 print(f"  Targets: med_capx={med_capx_init:.4f}, "
       f"pct_neg@phi0={neg_ebitda_base_pct:.2f}%, pct_neg@phiT={neg_ebitda_final_pct:.2f}%")
-print(f"  x0: sigma={sigma_init:.4f}, alpha_a={alpha_a_init:.4f}, alpha_k={alpha_k_init:.4f}")
+print("=" * 60)
+
+de_result = differential_evolution(
+    _obj_scalar,
+    bounds=list(zip(_BOUNDS_LOW, _BOUNDS_HIGH)),
+    seed=42,
+    strategy="best1bin",
+    maxiter=2,
+    popsize=5,          # 15 × 3 = 45 candidates per generation
+    tol=1e-4,
+    mutation=(0.5, 1.0),
+    recombination=0.7,
+    workers=-1,          # parallel across all available CPUs
+    polish=False,        # we polish with least_squares below
+    disp=True,
+)
+
+print(f"\nDE result:  success={de_result.success},  cost={de_result.fun:.6f}")
+print(f"  sigma={de_result.x[0]:.4f}  alpha_a={de_result.x[1]:.4f}  alpha_k={de_result.x[2]:.4f}")
+
+# -----------------------------------------------------------------------------
+# Re-seed warm starts from DE best point before LS refinement
+# -----------------------------------------------------------------------------
+
+_sigma_de, _aa_de, _ak_de = de_result.x
+_phi0_de, _phiT_de = _phi_endpoints(_sigma_de)
+print(f"\nRe-seeding warm starts from DE solution ...")
+_pre_phi0 = _solve_eqm(_phi0_de, _sigma_de, _aa_de, _ak_de)
+_pre_phiT = _solve_eqm(_phiT_de, _sigma_de, _aa_de, _ak_de)
+if _pre_phi0 is not None:
+    _ws['phi0'] = np.array([_pre_phi0["c_agg"], _pre_phi0["W"], _pre_phi0["P_M"]])
+if _pre_phiT is not None:
+    _ws['phiT'] = np.array([_pre_phiT["c_agg"], _pre_phiT["W"], _pre_phiT["P_M"]])
+
+# -----------------------------------------------------------------------------
+# Phase 2: Least Squares — local refinement from DE best point
+# -----------------------------------------------------------------------------
+
+print("\n" + "=" * 60)
+print("Phase 2: Least Squares refinement from DE solution")
 print("=" * 60)
 
 result = least_squares(
     obj_joint,
-    x0=np.array([sigma_init, alpha_a_init, alpha_k_init]),
+    x0=de_result.x,
     method="trf",
-    bounds=([1.0, 1e-3, 1e-3], [20.0, 0.99, 0.99]),
+    bounds=(_BOUNDS_LOW, _BOUNDS_HIGH),
     xtol=1e-5,
     ftol=1e-8,
     gtol=1e-8,

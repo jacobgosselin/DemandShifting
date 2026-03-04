@@ -1,0 +1,4 @@
+  File "calibrate_investment_params.py", line 32
+    print(f"AR(1) parameters for productivity: rho = {rho:.4f}, sigma_eps = {sigma_eps:.4f}")
+                                                                                           ^
+SyntaxError: invalid syntax

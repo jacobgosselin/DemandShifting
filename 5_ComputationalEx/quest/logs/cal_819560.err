@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "calibrate_investment_params.py", line 45, in <module>
+    coefs_fixed = _coefs_df[["year", "coef"]].to_numpy()  # shape (T, 2)
+  File "/software/anaconda3/lib/python3.4/site-packages/pandas/core/generic.py", line 3614, in __getattr__
+    return object.__getattribute__(self, name)
+AttributeError: 'DataFrame' object has no attribute 'to_numpy'

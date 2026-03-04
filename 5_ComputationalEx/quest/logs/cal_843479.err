@@ -1,0 +1,7 @@
+/home/jtg3519/.conda/envs/demandshifting/lib/python3.11/site-packages/scipy/optimize/_differentialevolution.py:518: UserWarning: differential_evolution: the 'workers' keyword has overridden updating='immediate' to updating='deferred'
+  with DifferentialEvolutionSolver(func, bounds, args=args,
+/gpfs/projects/p32386/Demand_Shifting/solve_vf.py:143: RuntimeWarning: overflow encountered in divide
+  K_now_of_Kp = (k_grid - i_line) / (1.0 - delta_k)
+/home/jtg3519/.conda/envs/demandshifting/lib/python3.11/site-packages/scipy/optimize/_lsq/trf.py:353: RuntimeWarning: overflow encountered in dot
+  cost_new = 0.5 * np.dot(f_new, f_new)
+slurmstepd: error: *** JOB 843479 ON qnode0107 CANCELLED AT 2026-03-04T09:12:16 DUE TO TIME LIMIT ***

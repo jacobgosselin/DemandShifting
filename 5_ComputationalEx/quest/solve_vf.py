@@ -73,6 +73,7 @@ def expected_marginals(V, Pi):
 
 # ===== Alternating 1-D EGM (no 2-D interpolation) =====
 
+@njit
 def _invert_monotone_map(x_src, y_map, x_tgt):
     """
     Given a monotone mapping x_src -> y_map (arrays length N over the same index),
@@ -91,10 +92,12 @@ def _invert_monotone_map(x_src, y_map, x_tgt):
     yq = np.clip(x_tgt, y_sorted[0], y_sorted[-1])
     return np.interp(yq, y_sorted, x_sorted)
 
+@njit
 def backward_step_alt1d(Vk, Vm, m_grid, k_grid, z_grid, Pi,
                         c_agg, W, P_M, beta, entry_perc,
                         sigma, delta_m, delta_k,
                         gamma_k, gamma_l, alpha_k, z_k, alpha_a, z_a, phi,
+                        MM, KK,
                         invest_m=True, invest_k=True):
     """
     Alternating 1-D EGM:
@@ -125,7 +128,7 @@ def backward_step_alt1d(Vk, Vm, m_grid, k_grid, z_grid, Pi,
                 # adjusted for exogenous exit
                 L_a_deriv = EVm[:, jk, iz] * (1-entry_perc) * beta / (W * P_M)
                 a_line = L_a_prime_inv(L_a_deriv, alpha_a, z_a)  # invert L_a'(a) to get a
-                a_line = np.maximum(a_line, 0.0) # no negative advertising
+                a_line = np.clip(a_line, 0.0, m_grid[-1] * P_M)  # clamp: [0, max advertising spend on grid]
                 m_line = a_line/P_M # advertising to customers conversion rate
                 M_now_of_Mp = (m_grid - m_line) / (1.0 - delta_m) # current M implied by each M'
                 Mp_of_M = _invert_monotone_map(m_grid, M_now_of_Mp, m_grid) # inverse map: D' as a function of current D (on structured grid)
@@ -139,29 +142,45 @@ def backward_step_alt1d(Vk, Vm, m_grid, k_grid, z_grid, Pi,
                 # adjusted for exogenous exit (* 1 - entry_perc)
                 L_k_deriv = EVk[im, :, iz] * (1-entry_perc) * beta / W
                 i_line = L_k_prime_inv(L_k_deriv, alpha_k, z_k)  # invert L_k'(i) to get i
-                i_line = np.maximum(i_line, 0.0) # no negative investment
+                i_line = np.clip(i_line, 0.0, k_grid[-1])  # clamp: [0, k_max] — prevents overflow when alpha_k near 1
                 K_now_of_Kp = (k_grid - i_line) / (1.0 - delta_k)
                 Kp_of_K = _invert_monotone_map(k_grid, K_now_of_Kp, k_grid)
                 L_k_deriv_hat[im, :, iz] = np.interp(Kp_of_K, k_grid, L_k_deriv)
 
     # Recover a, i on CURRENT grid via FOC inverses on L_a_deriv_hat, L_k_deriv_hat
-    MM, KK = np.meshgrid(m_grid, k_grid, indexing="ij")
+    # MM and KK are passed in as pre-computed (Nm, Nk) arrays (no np.meshgrid inside @njit)
 
     if invest_m:
         a_grid = L_a_prime_inv(L_a_deriv_hat, alpha_a, z_a)
         a_grid = np.maximum(a_grid, 0.0) # no negative advertising
-        m_policy = (1.0 - delta_m) * MM[:, :, None] + a_grid/P_M
+        m_policy = np.empty((Nm, Nk, Nz))
+        for _im in range(Nm):
+            for _ik in range(Nk):
+                for _iz in range(Nz):
+                    m_policy[_im, _ik, _iz] = (1.0 - delta_m) * MM[_im, _ik] + a_grid[_im, _ik, _iz] / P_M
     else:
         # No customer investment: m stays constant at grid value
-        m_policy = MM[:, :, None] * np.ones((1, 1, Nz))
+        m_policy = np.empty((Nm, Nk, Nz))
+        for _im in range(Nm):
+            for _ik in range(Nk):
+                for _iz in range(Nz):
+                    m_policy[_im, _ik, _iz] = MM[_im, _ik]
 
     if invest_k:
         i_grid = L_k_prime_inv(L_k_deriv_hat, alpha_k, z_k)
         i_grid = np.maximum(i_grid, 0.0) # no negative investment
-        k_policy = (1.0 - delta_k) * KK[:, :, None] + i_grid
+        k_policy = np.empty((Nm, Nk, Nz))
+        for _im in range(Nm):
+            for _ik in range(Nk):
+                for _iz in range(Nz):
+                    k_policy[_im, _ik, _iz] = (1.0 - delta_k) * KK[_im, _ik] + i_grid[_im, _ik, _iz]
     else:
         # No capital investment: k stays constant at grid value
-        k_policy = KK[:, :, None] * np.ones((1, 1, Nz))
+        k_policy = np.empty((Nm, Nk, Nz))
+        for _im in range(Nm):
+            for _ik in range(Nk):
+                for _iz in range(Nz):
+                    k_policy[_im, _ik, _iz] = KK[_im, _ik]
 
     # Envelope updates (mirror your existing formula)
     Vm_new = np.empty_like(Vm)
@@ -196,6 +215,16 @@ def solve_vf_egm(m_grid, k_grid, z_grid, Pi, c_agg, W, P_M, beta, entry_perc,
     m, k, z = np.meshgrid(m_grid, k_grid, z_grid, indexing='ij')
     Vk = pi_K(m, k, z, c_agg, sigma, W, gamma_k, gamma_l, phi)
     Vm = pi_M(m, k, z, c_agg, sigma, W, gamma_k, gamma_l, phi)
+
+    # Pre-compute grid broadcast arrays once (avoids np.meshgrid inside @njit)
+    Nm, Nk = len(m_grid), len(k_grid)
+    MM = np.empty((Nm, Nk))
+    KK = np.empty((Nm, Nk))
+    for _im in range(Nm):
+        for _ik in range(Nk):
+            MM[_im, _ik] = m_grid[_im]
+            KK[_im, _ik] = k_grid[_ik]
+
     # iterate
     for it in range(maxit):
         m_pol, k_pol, Vm_new, Vk_new = backward_step_alt1d(
@@ -203,6 +232,7 @@ def solve_vf_egm(m_grid, k_grid, z_grid, Pi, c_agg, W, P_M, beta, entry_perc,
             c_agg, W, P_M, beta, entry_perc,
             sigma, delta_m, delta_k,
             gamma_k, gamma_l, alpha_k, z_k, alpha_a, z_a, phi,
+            MM, KK,
             invest_m, invest_k)
         # Only check convergence on the active investment dimensions
         if invest_m and invest_k:

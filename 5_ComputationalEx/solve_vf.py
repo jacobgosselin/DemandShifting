@@ -92,6 +92,7 @@ def _invert_monotone_map(x_src, y_map, x_tgt):
     yq = np.clip(x_tgt, y_sorted[0], y_sorted[-1])
     return np.interp(yq, y_sorted, x_sorted)
 
+@njit
 def backward_step_alt1d(Vk, Vm, m_grid, k_grid, z_grid, Pi,
                         c_agg, W, P_M, beta, entry_perc,
                         sigma, delta_m, delta_k,

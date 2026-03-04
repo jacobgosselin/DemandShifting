@@ -196,7 +196,7 @@ de_result = differential_evolution(
     tol=1e-4,
     mutation=(0.5, 1.0),
     recombination=0.7,
-    workers=-1,          # parallel across all available CPUs
+    # workers=-1,          # parallel across all available CPUs
     polish=False,        # we polish with least_squares below
     disp=True,
 )

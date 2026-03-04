@@ -43,7 +43,7 @@ def forward_step(Dist, m_pol, k_pol, Pi, m_grid, k_grid):
                     newDist[mi_r, ki_r, izp] += m * wm_r  * wk_r
     return newDist
 
-def stationary_distribution(m_pol, k_pol, Pi, m_grid, k_grid, entry_perc, tol=1e-10, maxit=10_000,
+def stationary_distribution(m_pol, k_pol, Pi, m_grid, k_grid, entry_perc, tol=1e-10, maxit=10000,
                             invest_m=True, invest_k=True):
     """
     Compute stationary distribution over (m, k, z).

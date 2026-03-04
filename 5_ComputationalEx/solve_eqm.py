@@ -1,16 +1,16 @@
 import numpy as np
-from dataclasses import dataclass
+from numba import njit
 from scipy.optimize import least_squares
 from solve_vf import *
 from integrate_dist import stationary_distribution
 from prod_fncts import *
 
-def aggregate_vals(Dist, m_grid, k_grid, z_grid, pol,
+@njit
+def aggregate_vals(Dist, m_pol, k_pol, m_grid, k_grid, z_grid,
                    delta_m, delta_k, sigma, c_agg, P_M, W,
                    gamma_k, gamma_l, alpha_k, z_k, alpha_a, z_a, phi,
                    invest_m=True, invest_k=True):
     Nm, Nk, Nz = len(m_grid), len(k_grid), len(z_grid)
-    inner = 0.0
     agg_labor = 0.0
     agg_cust = 0.0
     agg_adv = 0.0
@@ -23,7 +23,8 @@ def aggregate_vals(Dist, m_grid, k_grid, z_grid, pol,
                     continue
                 m_val, k_val, z_val = m_grid[im], k_grid[ik], z_grid[iz]
                 c_val = c_i_star(m_val, k_val, z_val, c_agg, sigma, W, gamma_k, gamma_l, phi)
-                m_prime = pol["m_policy"][im, ik, iz]; k_prime = pol["k_policy"][im, ik, iz]
+                m_prime = m_pol[im, ik, iz]
+                k_prime = k_pol[im, ik, iz]
 
                 # Compute labor for each investment type (only if active)
                 L_s_i = L_s(c_val, z_val, k_val, gamma_k, gamma_l)
@@ -45,44 +46,46 @@ def aggregate_vals(Dist, m_grid, k_grid, z_grid, pol,
                 agg_cust += mass * m_val
                 consumption += mass * c_val**((sigma-1)/sigma)
 
-
     consumption = consumption**(sigma/(sigma-1))
     return consumption, agg_labor, agg_cust, agg_adv
 
-@dataclass
-class EqmParams:
-    beta: float = 0.96
-    delta_m: float = 0.15
-    delta_k: float = 0.10
-    entry_perc: float = 0
-    sigma: float = 5.0
-    gamma_k: float = 1/3   # capital exponent in Y = Z * K^gamma_k * L^gamma_l
-    gamma_l: float = 2/3   # labor exponent  (not constrained to sum to 1 with gamma_k)
+class EqmParams(object):
     # DRS labor cost parameters:
     #   alpha_k, z_k for capital investment: L^k(i) = (i/z_k)^(1/alpha_k)
     #   alpha_a, z_a for advertising:        L^a(a) = (a/z_a)^(1/alpha_a)
     # z_a is normalized to 1.0 (scale of advertising is absorbed by P_M).
-    alpha_k: float = 0.5
-    z_k: float = 1.0
-    alpha_a: float = 0.5
-    z_a: float = 1.0
-    phi: float = 0.0
-    invest_m: bool = True  # whether to allow customer investment
-    invest_k: bool = True  # whether to allow capital investment
-    fixed_cost: float = 0.0  # fixed operating cost deducted from earnings; lump-sum transfer to HH, does not affect equilibrium
+    def __init__(self, beta=0.96, delta_m=0.15, delta_k=0.10, entry_perc=0,
+                 sigma=5.0, gamma_k=1.0/3, gamma_l=2.0/3,
+                 alpha_k=0.5, z_k=1.0, alpha_a=0.5, z_a=1.0,
+                 phi=0.0, invest_m=True, invest_k=True, fixed_cost=0.0):
+        self.beta = beta
+        self.delta_m = delta_m
+        self.delta_k = delta_k
+        self.entry_perc = entry_perc
+        self.sigma = sigma
+        self.gamma_k = gamma_k  # capital exponent in Y = Z * K^gamma_k * L^gamma_l
+        self.gamma_l = gamma_l  # labor exponent (not constrained to sum to 1 with gamma_k)
+        self.alpha_k = alpha_k
+        self.z_k = z_k
+        self.alpha_a = alpha_a
+        self.z_a = z_a
+        self.phi = phi
+        self.invest_m = invest_m  # whether to allow customer investment
+        self.invest_k = invest_k  # whether to allow capital investment
+        self.fixed_cost = fixed_cost  # fixed operating cost deducted from earnings
 
-def eqm_residuals(x, m_grid, k_grid, z_grid, Pi, p: EqmParams, verbose=True):
+def eqm_residuals(x, m_grid, k_grid, z_grid, Pi, p: EqmParams, verbose=True, vf_maxit=250):
     c_agg, W, P_M = x
     pol = solve_vf_egm(m_grid, k_grid, z_grid, Pi,
                        c_agg, W, P_M,
                        p.beta, p.entry_perc, p.sigma, p.delta_m, p.delta_k,
                        p.gamma_k, p.gamma_l, p.alpha_k, p.z_k, p.alpha_a, p.z_a, p.phi,
-                       maxit=250, tol=1e-6, verbose=verbose,
+                       maxit=vf_maxit, tol=1e-6, verbose=verbose,
                        invest_m=p.invest_m, invest_k=p.invest_k)
     Dist = stationary_distribution(pol["m_policy"], pol["k_policy"], Pi, m_grid, k_grid, p.entry_perc,
                                    invest_m = p.invest_m, invest_k = p.invest_k)
     consumption, agg_labor, agg_cust, agg_adv = aggregate_vals(
-        Dist, m_grid, k_grid, z_grid, pol,
+        Dist, pol["m_policy"], pol["k_policy"], m_grid, k_grid, z_grid,
         p.delta_m, p.delta_k, p.sigma, c_agg, P_M, W,
         p.gamma_k, p.gamma_l, p.alpha_k, p.z_k, p.alpha_a, p.z_a, p.phi,
         p.invest_m, p.invest_k
@@ -94,7 +97,8 @@ def eqm_residuals(x, m_grid, k_grid, z_grid, Pi, p: EqmParams, verbose=True):
 
 def solve_ss_equilibrium_least_squares(m_grid, k_grid, z_grid, Pi,
                                        p: EqmParams,
-                                       start=None, bounds=None, verbose=True):
+                                       start=None, bounds=None, verbose=True,
+                                       max_nfev=1000, vf_maxit=250):
     """
     Solve for steady-state equilibrium.
 
@@ -120,7 +124,7 @@ def solve_ss_equilibrium_least_squares(m_grid, k_grid, z_grid, Pi,
     if bounds is None:
         lb = np.array([0, 0, 0]); ub = np.array([np.inf, np.inf, np.inf])
         bounds = (lb, ub)
-    ls = least_squares(lambda x: eqm_residuals(x, m_grid, k_grid, z_grid, Pi, p, verbose), start, bounds=bounds, xtol=1e-8, ftol=1e-8, gtol=1e-8, max_nfev=1e3, verbose=2 if verbose else 0)
+    ls = least_squares(lambda x: eqm_residuals(x, m_grid, k_grid, z_grid, Pi, p, verbose, vf_maxit=vf_maxit), start, bounds=bounds, xtol=1e-8, ftol=1e-8, gtol=1e-8, max_nfev=max_nfev, verbose=2 if verbose else 0)
     x = ls.x
     c_agg, W, P_M = x
     pol = solve_vf_egm(m_grid, k_grid, z_grid, Pi,
@@ -132,7 +136,7 @@ def solve_ss_equilibrium_least_squares(m_grid, k_grid, z_grid, Pi,
     Dist = stationary_distribution(pol["m_policy"], pol["k_policy"], Pi, m_grid, k_grid, p.entry_perc,
                                    invest_m = p.invest_m, invest_k = p.invest_k)
     consumption, agg_labor, agg_cust, agg_adv = aggregate_vals(
-        Dist, m_grid, k_grid, z_grid, pol,
+        Dist, pol["m_policy"], pol["k_policy"], m_grid, k_grid, z_grid,
         p.delta_m, p.delta_k, p.sigma, c_agg, P_M, W,
         p.gamma_k, p.gamma_l, p.alpha_k, p.z_k, p.alpha_a, p.z_a, p.phi,
         p.invest_m, p.invest_k
@@ -140,7 +144,7 @@ def solve_ss_equilibrium_least_squares(m_grid, k_grid, z_grid, Pi,
     print("Solution:", {"C_agg": c_agg}, {"C_impl": consumption}, {"Customers": agg_cust}, {"Labor": agg_labor}, {"Adv": agg_adv})
     out = {
         "W": W, "c_agg": c_agg, "P_M": P_M,
-        "residuals": eqm_residuals(x, m_grid, k_grid, z_grid, Pi, p),
+        "residuals": ls.fun,  # reuse residuals from last LS eval (avoids extra VF solve)
         "ls_success": ls.success, "ls_message": ls.message,
         "policies": pol, "Dist": Dist,
         "Agg": {"C_impl": consumption, "Adv_Impl": agg_adv},

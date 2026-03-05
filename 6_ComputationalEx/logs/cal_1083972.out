@@ -1,0 +1,25 @@
+
+Production function parameters (fixed):
+  gamma_k = 0.333333,  gamma_l = 0.666667
+
+Calibration targets:
+  pct_neg          @ phi0 = 10.8529%
+  pct_neg          @ phiT = 28.0581%
+  log_chg_sd_earn         = 1.0646
+  log_chg_sd_sales        = 0.8334
+  (diag) log_chg_avg_ebitda = 1.3475
+
+Loaded initial guesses from /gpfs/projects/p32386/Demand_Shifting/calibrated_investment_params.csv:
+  sigma_init     = 4.315675
+  alpha_k_init   = 0.732125
+  alpha_a_init   = 0.458870
+  rho_init       = 0.900000
+  sigma_eps_init = 0.100000
+
+Initial phi endpoints: phi0=0.7488, phiT=0.9678
+
+============================================================
+Phase 1: Differential Evolution (global search)
+  Targets: pct_neg@phi0=10.85%  pct_neg@phiT=28.06%
+  Targets: log_chg_sd_earn=1.0646  log_chg_sd_sales=0.8334
+============================================================

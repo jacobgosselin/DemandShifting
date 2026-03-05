@@ -16,6 +16,11 @@ load("data/clean/analysis_data.RData")
 
 # Singleton and finiteness filters for regression ----
 reg_data <- analysis_data %>%
+  filter(
+    !is.na(sale) & !is.na(m_stock) &
+    !is.infinite(sale) & !is.infinite(m_stock) & 
+    m_stock > 0 & sale > 0
+  ) %>%
   mutate(
     log_sale    = log(sale),
     log_m_stock = log(m_stock)
@@ -25,14 +30,6 @@ reg_data <- analysis_data %>%
     !is.infinite(log_sale) & !is.infinite(log_m_stock)
   ) %>%
   group_by(gvkey) %>%
-  arrange(gvkey, date) %>%
-  mutate(
-    lag_log_m_stock = log(m_stock_lag),
-    lag_log_m_stock2 = log(m_stock_lag2)
-  ) %>%
-  filter(n() > 1) %>%
-  ungroup() %>%
-  group_by(date, naics_2digit) %>%
   filter(n() > 1) %>%
   ungroup()
 

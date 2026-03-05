@@ -1,3 +1,7 @@
+# DEPRECATED: Use solve_phi_path.py (parallelized solve) + plot_trends.py (figures) instead.
+# This script is kept as a sequential fallback / reference implementation.
+# See run_phi_path.slurm for Quest submission.
+
 from solve_eqm import *
 from integrate_dist import *
 import numpy as np

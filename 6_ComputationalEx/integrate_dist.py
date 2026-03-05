@@ -102,7 +102,7 @@ def calc_value(m, k, z, m_prime, k_prime, eqm, value_type):
     L_a_i = L_a(adv, alpha_a, z_a)
     L_k_i = L_k(inv, alpha_k, z_k)
     L_s_i = L_s(c_val, z, k, gamma_k, gamma_l)
-    earnings = p_val*c_val - W * (L_s_i + L_a_i) - fixed_cost
+    earnings = p_val*c_val - W * (L_s_i + L_k_i + L_a_i) - fixed_cost
     revenue = p_val * c_val
     adv_ratio = (W*L_a_i) / revenue
     inv_ratio = (W*L_k_i) / revenue
@@ -228,3 +228,14 @@ def est_sd(cdf):
     mean = np.sum(cdf[:,0] * np.diff(np.hstack(([0], cdf[:,1]))))
     var = np.sum((cdf[:,0] - mean)**2 * np.diff(np.hstack(([0], cdf[:,1]))))
     return var**0.5
+
+def median_earnings(m_grid, k_grid, z_grid, eqm):
+    """Compute median earnings."""
+    _, earn_cdf = est_dist(m_grid, k_grid, z_grid, eqm, 'earnings')
+    return median_from_cdf(earn_cdf)
+
+def mean_earnings(m_grid, k_grid, z_grid, eqm):
+    """Compute mean earnings."""
+    earn_pdf, _ = est_dist(m_grid, k_grid, z_grid, eqm, 'earnings')
+    total_mass = np.sum(earn_pdf[:, 1])
+    return np.sum(earn_pdf[:, 0] * earn_pdf[:, 1]) / total_mass

@@ -64,19 +64,26 @@ struct_data$entry_rate <- entry_rate
 base_year  <- analysis_data %>% filter(date == 1980)
 final_year <- analysis_data %>% filter(date == 2019)
 
-sga_sale_median              <- median(base_year$sga_sale,                               na.rm = TRUE)
 capx_sale_median             <- median(base_year$capx_sale,                              na.rm = TRUE)
 sga_sale_negebitda_median    <- median(base_year$sga_sale[base_year$neg_ebitda == 1],    na.rm = TRUE)
 capx_sale_negebitda_median   <- median(base_year$capx_sale[base_year$neg_ebitda == 1],   na.rm = TRUE)
 neg_ebitda_base              <- mean(base_year$neg_ebitda,                               na.rm = TRUE)
 neg_ebitda_final             <- mean(final_year$neg_ebitda,                              na.rm = TRUE)
+log_change_avg_ebitda        <- log(mean(final_year$ebitda, na.rm = TRUE)) -
+                                log(mean(base_year$ebitda,  na.rm = TRUE))
+log_change_sd_earnings       <- log(sd(final_year$ebitda,   na.rm = TRUE)) -
+                                log(sd(base_year$ebitda,    na.rm = TRUE))
+log_change_sd_sales          <- log(sd(final_year$sale,     na.rm = TRUE)) -
+                                log(sd(base_year$sale,      na.rm = TRUE))
 
-struct_data$med_sales               <- sga_sale_median
 struct_data$med_capx_sale           <- capx_sale_median
 struct_data$med_sales_negebitda     <- sga_sale_negebitda_median
 struct_data$med_capx_sale_negebitda <- capx_sale_negebitda_median
 struct_data$neg_ebitda_base         <- neg_ebitda_base
 struct_data$neg_ebitda_final        <- neg_ebitda_final
+struct_data$log_change_avg_ebitda   <- log_change_avg_ebitda
+struct_data$log_change_sd_earnings  <- log_change_sd_earnings
+struct_data$log_change_sd_sales     <- log_change_sd_sales
 
 write.csv(struct_data, file.path(REPO_DIR, "6_ComputationalEx", "structural_parameters.csv"), row.names = FALSE)
 

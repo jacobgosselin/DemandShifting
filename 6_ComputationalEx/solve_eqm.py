@@ -141,7 +141,6 @@ def solve_ss_equilibrium_least_squares(m_grid, k_grid, z_grid, Pi,
         p.gamma_k, p.gamma_l, p.alpha_k, p.z_k, p.alpha_a, p.z_a, p.phi,
         p.invest_m, p.invest_k
     )
-    print("Solution:", {"C_agg": c_agg}, {"C_impl": consumption}, {"Customers": agg_cust}, {"Labor": agg_labor}, {"Adv": agg_adv})
     out = {
         "W": W, "c_agg": c_agg, "P_M": P_M,
         "residuals": ls.fun,  # reuse residuals from last LS eval (avoids extra VF solve)

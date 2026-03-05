@@ -129,9 +129,18 @@ med_adv_all, med_inv_all, med_cogs_all = [], [], []
 med_adv_neg, med_inv_neg, med_cogs_neg = [], [], []
 c_vals = []
 
+m_bnd_vals = []
+k_bnd_vals = []
+
 for phi in phi_track_values:
     eqm = eqms_track[phi]
     pct_neg_vals.append(pct_negative(m_grid, k_grid, z_grid, eqm))
+    dist = eqm['Dist']
+    m_bnd = np.sum(dist[-10:, :, :]) / np.sum(dist)
+    k_bnd = np.sum(dist[:, -10:, :]) / np.sum(dist)
+    m_bnd_vals.append(m_bnd)
+    k_bnd_vals.append(k_bnd)
+    print(f"  phi={phi:.4f}: pct_neg={pct_neg_vals[-1]:.2f}%  m_bnd={m_bnd:.4f}  k_bnd={k_bnd:.4f}")
     _, earnings_cdf = est_dist(m_grid, k_grid, z_grid, eqm, 'earnings')
     _, sales_cdf = est_dist(m_grid, k_grid, z_grid, eqm, 'revenue')
     sd_earnings_vals.append(est_sd(earnings_cdf))
@@ -229,6 +238,8 @@ tracking_df = pd.DataFrame({
     'med_inv_neg': med_inv_neg,
     'med_cogs_neg': med_cogs_neg,
     'c_agg': c_vals,
+    'm_bnd_mass': m_bnd_vals,
+    'k_bnd_mass': k_bnd_vals,
 })
 tracking_df.to_csv(f'{MAIN_DIR}/data/clean/model_implied_trends_arb_scale.csv', index=False)
 print(f"\nTracking moments figures saved to {FIGURES_DIR}/ (suffix: _arb_scale)")

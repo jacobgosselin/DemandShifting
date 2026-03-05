@@ -17,12 +17,16 @@ num_observations <- nrow(analysis_data)
 cat("Number of firms:", num_firms, "\n")
 cat("Number of observations:", num_observations, "\n")
 
-# Common theme for all plots
+# Common theme and palette for all plots
 theme_common <- theme_minimal(base_size = 24) +
   theme(
     plot.title = element_text(face = "bold"),
     legend.position = "bottom"
   )
+
+palette_2 <- viridis::inferno(2, begin = 0.0, end = 0.9)
+palette_3 <- viridis::inferno(3, begin = 0.0, end = 0.9)
+palette_4 <- viridis::inferno(4, begin = 0.0, end = 0.9)
 
 # 2a. Plot percent of firms with negative earnings by year ---------------
 
@@ -58,27 +62,15 @@ irs_corps_returns_pre94 <- read.csv("data/clean/irs_corp_returns_pre94.csv") %>%
 
 irs_corps_returns <- bind_rows(irs_corps_returns_pre94, irs_corp_returns_post94)
 
-# Calculate offset to align starting points
-compustat_1980 <- neg_earnings_by_year %>% filter(date == 1980) %>% pull(pct_negative)
-irs_1980 <- irs_corps_returns %>% filter(year == 1980) %>% pull(perc_neg_earnings)
-offset <- compustat_1980 - irs_1980
-
-# Transform IRS data to align visually with Compustat
-irs_corps_returns <- irs_corps_returns %>%
-  mutate(perc_neg_adjusted = perc_neg_earnings + offset)
-
 ggplot() +
-  geom_line(data = neg_earnings_by_year, aes(x = date, y = pct_negative, color = "Compustat"), linewidth = 2) +
-  geom_point(data = neg_earnings_by_year, aes(x = date, y = pct_negative, color = "Compustat"), size = 3) +
-  geom_line(data = irs_corps_returns, aes(x = year, y = perc_neg_adjusted, color = "IRS"), linewidth = 2) +
-  geom_point(data = irs_corps_returns, aes(x = year, y = perc_neg_adjusted, color = "IRS"), size = 3) +
-  scale_y_continuous(
-    name = "Compustat: % Firms with EBITDA < 0",
-    sec.axis = sec_axis(~ . - offset, name = "IRS: % Returns with No Net Income (Excluding 1120-S)")
-  ) +
-  scale_color_manual(values = c("Compustat" = "black", "IRS" = "steelblue")) +
+  geom_line(data = neg_earnings_by_year, aes(x = date, y = pct_negative, color = "EBITDA < 0 (Compustat)"), linewidth = 2) +
+  geom_point(data = neg_earnings_by_year, aes(x = date, y = pct_negative, color = "EBITDA < 0 (Compustat)"), size = 3) +
+  geom_line(data = irs_corps_returns, aes(x = year, y = perc_neg_earnings, color = "Net Income < 0 (IRS)"), linewidth = 2) +
+  geom_point(data = irs_corps_returns, aes(x = year, y = perc_neg_earnings, color = "Net Income < 0 (IRS)"), size = 3) +
+  scale_color_manual(values = setNames(palette_2, c("EBITDA < 0 (Compustat)", "Net Income < 0 (IRS)"))) +
   labs(
     x = "Year",
+    y = "% with Negative Earnings",
     color = ""
   ) +
   theme_common
@@ -90,43 +82,18 @@ ggsave("figures/pct_negative_earnings_compustat_vs_irs.pdf", width = 10, height 
 neg_earnings_alt <- analysis_data %>%
   group_by(date) %>%
   reframe(
-    pct_neg_ebitda = mean(ebitda < 0) * 100,
-    pct_neg_ni     = mean(ni < 0, na.rm = TRUE) * 100,
-    pct_neg_pi     = mean(pi < 0, na.rm = TRUE) * 100
-  )
+    `EBITDA < 0`        = mean(ebitda < 0, na.rm = TRUE) * 100,
+    `Net Income < 0`    = mean(ni < 0, na.rm = TRUE) * 100,
+    `Pretax Income < 0` = mean(pi < 0, na.rm = TRUE) * 100
+  ) %>%
+  pivot_longer(cols = -date, names_to = "measure", values_to = "pct_negative")
 
-# Dual-axis: primary = EBITDA, secondary covers combined range of NI and PI
-primary_min   <- min(neg_earnings_alt$pct_neg_ebitda)
-primary_max   <- max(neg_earnings_alt$pct_neg_ebitda)
-secondary_min <- min(c(neg_earnings_alt$pct_neg_ni, neg_earnings_alt$pct_neg_pi), na.rm = TRUE)
-secondary_max <- max(c(neg_earnings_alt$pct_neg_ni, neg_earnings_alt$pct_neg_pi), na.rm = TRUE)
-
-scale_alt <- (secondary_max - secondary_min) / (primary_max - primary_min)
-shift_alt  <- secondary_min - scale_alt * primary_min
-
-neg_earnings_alt <- neg_earnings_alt %>%
-  mutate(
-    pct_neg_ni_scaled = (pct_neg_ni - shift_alt) / scale_alt,
-    pct_neg_pi_scaled = (pct_neg_pi - shift_alt) / scale_alt
-  )
-
-ggplot(neg_earnings_alt, aes(x = date)) +
-  geom_line(aes(y = pct_neg_ebitda,    color = "EBITDA < 0"),       linewidth = 2) +
-  geom_point(aes(y = pct_neg_ebitda,   color = "EBITDA < 0"),       size = 3) +
-  geom_line(aes(y = pct_neg_ni_scaled, color = "Net Income < 0"),   linewidth = 2) +
-  geom_point(aes(y = pct_neg_ni_scaled,color = "Net Income < 0"),   size = 3) +
-  geom_line(aes(y = pct_neg_pi_scaled, color = "Pretax Income < 0"),linewidth = 2) +
-  geom_point(aes(y = pct_neg_pi_scaled,color = "Pretax Income < 0"),size = 3) +
-  scale_y_continuous(
-    name = "% Firms with EBITDA < 0",
-    sec.axis = sec_axis(~ . * scale_alt + shift_alt, name = "% Firms with NI / PI < 0")
-  ) +
-  scale_color_manual(values = c(
-    "EBITDA < 0"       = "black",
-    "Net Income < 0"   = "steelblue",
-    "Pretax Income < 0"= "darkred"
-  )) +
-  labs(x = "Year", color = "") +
+ggplot(neg_earnings_alt, aes(x = date, y = pct_negative, color = measure)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = setNames(palette_3,
+    c("EBITDA < 0", "Net Income < 0", "Pretax Income < 0"))) +
+  labs(x = "Year", y = "% Firms with Negative Earnings", color = "") +
   theme_common
 
 ggsave("figures/pct_negative_earnings_alt_measures.pdf", width = 10, height = 10)
@@ -144,7 +111,7 @@ ebitda_stats_by_year <- analysis_data %>%
 ggplot(ebitda_stats_by_year, aes(x = date, y = log_ebitda, color = stat)) +
   geom_line(linewidth = 2) +
   geom_point(size = 3) +
-  scale_color_manual(values = c("Mean" = "black", "Median" = "steelblue")) +
+  scale_color_manual(values = setNames(palette_2, c("Mean", "Median"))) +
   labs(x = "Year", y = "EBITDA (logged)", color = "") +
   theme_common
 
@@ -247,7 +214,7 @@ ggplot(top_decile_sales_long, aes(x = date, y = log_change, color = percentile, 
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   scale_x_continuous(breaks = seq(1980, 2020, 5)) +
   scale_color_manual(
-    values = setNames(viridis::plasma(4, begin = 0.1, end = 0.9),
+    values = setNames(palette_4,
                       c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")),
     labels = c("log_change_p75" = "|P75 - Median|", "log_change_p90" = "|P90 - Median|", "log_change_p95" = "|P95 - Median|", "log_change_p99" = "|P99 - Median|"),
     breaks = c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")
@@ -306,7 +273,7 @@ ggplot(bottom_quantile_sales_long, aes(x = date, y = log_change, color = percent
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   scale_x_continuous(breaks = seq(1980, 2020, 5)) +
   scale_color_manual(
-    values = setNames(viridis::plasma(4, begin = 0.1, end = 0.9),
+    values = setNames(palette_4,
                       c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")),
     labels = c("log_change_p25" = "|Median - P25|", "log_change_p10" = "|Median - P10|", "log_change_p5" = "|Median - P5|", "log_change_p1" = "|Median - P1|"),
     breaks = c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")
@@ -328,7 +295,7 @@ sd_by_year <- analysis_data %>%
   group_by(date) %>%
   reframe(
     log_sd = log(sd(ebitda))
-  ) 
+  )
 
 # Get 1980 values for normalization
 base_1980_sd <- sd_by_year %>% filter(date == 1980)
@@ -351,7 +318,7 @@ ggplot(sd_by_year, aes(x = date, y = log_sd)) +
     y = "Std. Deviation EBITDA (Logged)"
   ) +
   theme_common
- 
+
 ggsave("figures/sd_earnings_by_year.pdf", width = 10, height = 10)
 
 # 4b. Top Percentiles of earnings over time ------------------------
@@ -397,7 +364,7 @@ ggplot(top_decile_long, aes(x = date, y = log_change, color = percentile, group 
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   scale_x_continuous(breaks = seq(1980, 2020, 5)) +
   scale_color_manual(
-    values = setNames(viridis::plasma(4, begin = 0.1, end = 0.9),
+    values = setNames(palette_4,
                       c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")),
     labels = c("log_change_p75" = "|P75 - Median|", "log_change_p90" = "|P90 - Median|", "log_change_p95" = "|P95 - Median|", "log_change_p99" = "|P99 - Median|"),
     breaks = c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")
@@ -456,7 +423,7 @@ ggplot(bottom_quantile_long, aes(x = date, y = log_change, color = percentile, g
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   scale_x_continuous(breaks = seq(1980, 2020, 5)) +
   scale_color_manual(
-    values = setNames(viridis::plasma(4, begin = 0.1, end = 0.9),
+    values = setNames(palette_4,
                       c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")),
     labels = c("log_change_p25" = "|Median - P25|", "log_change_p10" = "|Median - P10|", "log_change_p5" = "|Median - P5|", "log_change_p1" = "|Median - P1|"),
     breaks = c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")
@@ -511,7 +478,7 @@ ggplot(sector_2digit_long, aes(x = reorder(as.factor(naics_2digit),
   geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
   scale_fill_manual(
     breaks = c("pct_negative_late", "change_pct_negative"),
-    values = c("pct_negative_late" = "steelblue", "change_pct_negative" = "darkgreen"),
+    values = setNames(palette_2, c("pct_negative_late", "change_pct_negative")),
     labels = c("pct_negative_late" = "% Neg. Earnings \n (2014-2019)",
                "change_pct_negative" = "Change in % Neg. Earnings \n (1980-1984 to 2014-2019)")
   ) +
@@ -562,7 +529,7 @@ ggplot(concentration_long, aes(x = date, y = share, color = percentile, group = 
   geom_point(size = 2) +
   scale_x_continuous(breaks = seq(1980, 2020, 5)) +
   scale_color_manual(
-    values = c("top10_share" = "#6A3D9A", "top5_share" = "#1F78B4", "top1_share" = "#E31A1C", "top01_share" = "#33A02C"),
+    values = setNames(palette_4, c("top10_share", "top5_share", "top1_share", "top01_share")),
     labels = c("top10_share" = "Top 10%", "top5_share" = "Top 5%", "top1_share" = "Top 1%", "top01_share" = "Top 0.1%")
   ) +
   labs(
@@ -583,8 +550,8 @@ earnings_early_late <- analysis_data %>%
 
 ggplot(earnings_early_late, aes(x = ebitda, fill = period, color = period)) +
   geom_histogram(aes(y = after_stat(density)), alpha = 0.4, position = "identity", bins = 10000) +
-  scale_fill_manual(values = c("1980-1984" = "#1F78B4", "2015-2019" = "#E31A1C")) +
-  scale_color_manual(values = c("1980-1984" = "#1F78B4", "2015-2019" = "#E31A1C")) +
+  scale_fill_manual(values = setNames(palette_2, c("1980-1984", "2015-2019"))) +
+  scale_color_manual(values = setNames(palette_2, c("1980-1984", "2015-2019"))) +
   coord_cartesian(xlim = c(earnings_early_late$ebitda %>% quantile(0.1),
                            earnings_early_late$ebitda %>% quantile(0.9))) +
   labs(
@@ -608,8 +575,8 @@ earnings_early_late_info <- analysis_data %>%
 
 ggplot(earnings_early_late_info, aes(x = ebitda, fill = period, color = period)) +
   geom_histogram(aes(y = after_stat(density)), alpha = 0.4, position = "identity", bins = 10000) +
-  scale_fill_manual(values = c("1980-1984" = "#1F78B4", "2015-2019" = "#E31A1C")) +
-  scale_color_manual(values = c("1980-1984" = "#1F78B4", "2015-2019" = "#E31A1C")) +
+  scale_fill_manual(values = setNames(palette_2, c("1980-1984", "2015-2019"))) +
+  scale_color_manual(values = setNames(palette_2, c("1980-1984", "2015-2019"))) +
   coord_cartesian(xlim = c(earnings_early_late_info$ebitda %>% quantile(0.1),
                            earnings_early_late_info$ebitda %>% quantile(0.9))) +
   labs(

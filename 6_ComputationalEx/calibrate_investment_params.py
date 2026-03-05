@@ -63,18 +63,20 @@ out_path = os.path.join(_DIR, "calibrated_investment_params.csv")
 sigma_init   = 4.0
 alpha_k_init = 0.5
 alpha_a_init = 0.5
-z_k_init       = 1.0
-fixed_cost_init = 0.0
+z_k_init     = 1.0
 
 if os.path.isfile(out_path):
     _cal_prev    = pd.read_csv(out_path)
     sigma_init   = float(_cal_prev["sigma"].iloc[0])
     alpha_k_init = float(_cal_prev["alpha_k"].iloc[0])
     alpha_a_init = float(_cal_prev["alpha_a"].iloc[0])
+    if "z_k" in _cal_prev.columns:
+        z_k_init = float(_cal_prev["z_k"].iloc[0])
     print("\nLoaded initial guesses from {}:".format(out_path))
     print("  sigma_init   = {:.6f}".format(sigma_init))
     print("  alpha_k_init = {:.6f}".format(alpha_k_init))
     print("  alpha_a_init = {:.6f}".format(alpha_a_init))
+    print("  z_k_init     = {:.6f}".format(z_k_init))
 else:
     print("\nNo existing calibrated parameters found; using defaults.")
 
@@ -133,17 +135,17 @@ _ws = {'phi0': None, 'phiT': None}
 
 
 def obj_joint(x, max_nfev=20, vf_maxit=100):
-    sigma_try, alpha_a_try, alpha_k_try, z_k_try, fc_try = (
-        float(x[0]), float(x[1]), float(x[2]), float(x[3]), float(x[4])
+    sigma_try, alpha_a_try, alpha_k_try, z_k_try = (
+        float(x[0]), float(x[1]), float(x[2]), float(x[3])
     )
     phi0, phiT = _phi_endpoints(sigma_try)
 
-    eqm_phi0 = _solve_eqm(phi0, sigma_try, alpha_a_try, alpha_k_try, z_k=z_k_try, fixed_cost=fc_try, warm_start=_ws['phi0'], max_nfev=max_nfev, vf_maxit=vf_maxit)
+    eqm_phi0 = _solve_eqm(phi0, sigma_try, alpha_a_try, alpha_k_try, z_k=z_k_try, fixed_cost=0.0, warm_start=_ws['phi0'], max_nfev=max_nfev, vf_maxit=vf_maxit)
     if eqm_phi0 is None:
         return np.full(2, 1e3)
     _ws['phi0'] = np.array([eqm_phi0["c_agg"], eqm_phi0["W"], eqm_phi0["P_M"]])
 
-    eqm_phiT = _solve_eqm(phiT, sigma_try, alpha_a_try, alpha_k_try, z_k=z_k_try, fixed_cost=fc_try, warm_start=_ws['phiT'], max_nfev=max_nfev, vf_maxit=vf_maxit)
+    eqm_phiT = _solve_eqm(phiT, sigma_try, alpha_a_try, alpha_k_try, z_k=z_k_try, fixed_cost=0.0, warm_start=_ws['phiT'], max_nfev=max_nfev, vf_maxit=vf_maxit)
     if eqm_phiT is None:
         return np.full(2, 1e3)
     _ws['phiT'] = np.array([eqm_phiT["c_agg"], eqm_phiT["W"], eqm_phiT["P_M"]])
@@ -156,18 +158,26 @@ def obj_joint(x, max_nfev=20, vf_maxit=100):
         (pctT - neg_ebitda_final_pct)/100,
     ])
     print(
-        "sig={:.4f} ak={:.4f} aa={:.4f} zk={:.4f} fc={:.4f} | "
+        "sig={:.4f} ak={:.4f} aa={:.4f} zk={:.4f} | "
         "pct0={:.2f}% pctT={:.2f}% | "
-        "||res||={:.6f}".format(sigma_try, alpha_k_try, alpha_a_try, z_k_try, fc_try,
+        "||res||={:.6f}".format(sigma_try, alpha_k_try, alpha_a_try, z_k_try,
                                 pct0, pctT,
                                 np.linalg.norm(res))
+    )
+    d0, dT = eqm_phi0['Dist'], eqm_phiT['Dist']
+    print(
+        "  bnd: phi0 m={:.3f} k={:.3f} | phiT m={:.3f} k={:.3f}".format(
+            np.sum(d0[-10:, :, :]) / np.sum(d0),
+            np.sum(d0[:, -10:, :]) / np.sum(d0),
+            np.sum(dT[-10:, :, :]) / np.sum(dT),
+            np.sum(dT[:, -10:, :]) / np.sum(dT))
     )
     import sys; sys.stdout.flush()
     return res
 
 
-_BOUNDS_LOW  = [1.5, 0.1, 0.1, 0.1, 0.0]   # sigma, alpha_a, alpha_k, z_k, fixed_cost
-_BOUNDS_HIGH = [10.0, 0.9, 0.9, 5.0, 0.5]
+_BOUNDS_LOW  = [1.5, 0.1, 0.1, 0.1]   # sigma, alpha_a, alpha_k, z_k
+_BOUNDS_HIGH = [10.0, 0.9, 0.9, 5.0]
 
 def _obj_scalar(x):
     """Scalar sum-of-squares objective for DE (each worker gets its own process copy of _ws)."""
@@ -183,8 +193,8 @@ if __name__ == '__main__':
     _phi0_init, _phiT_init = _phi_endpoints(sigma_init)
     print("\nInitial phi endpoints: phi0={:.4f}, phiT={:.4f}".format(_phi0_init, _phiT_init))
 
-    _pre_phi0 = _solve_eqm(_phi0_init, sigma_init, alpha_a_init, alpha_k_init, z_k=z_k_init, fixed_cost=fixed_cost_init, max_nfev=1000)
-    _pre_phiT = _solve_eqm(_phiT_init, sigma_init, alpha_a_init, alpha_k_init, z_k=z_k_init, fixed_cost=fixed_cost_init, max_nfev=1000)
+    _pre_phi0 = _solve_eqm(_phi0_init, sigma_init, alpha_a_init, alpha_k_init, z_k=z_k_init, fixed_cost=0.0, max_nfev=1000)
+    _pre_phiT = _solve_eqm(_phiT_init, sigma_init, alpha_a_init, alpha_k_init, z_k=z_k_init, fixed_cost=0.0, max_nfev=1000)
     if _pre_phi0 is not None:
         _ws['phi0'] = np.array([_pre_phi0["c_agg"], _pre_phi0["W"], _pre_phi0["P_M"]])
     if _pre_phiT is not None:
@@ -224,11 +234,11 @@ if __name__ == '__main__':
     # Re-seed warm starts from DE best point before LS refinement
     # -------------------------------------------------------------------------
 
-    _sigma_de, _aa_de, _ak_de, _zk_de, _fc_de = de_result.x
+    _sigma_de, _aa_de, _ak_de, _zk_de = de_result.x
     _phi0_de, _phiT_de = _phi_endpoints(_sigma_de)
     print("\nRe-seeding warm starts from DE solution ...")
-    _pre_phi0 = _solve_eqm(_phi0_de, _sigma_de, _aa_de, _ak_de, z_k=_zk_de, fixed_cost=_fc_de, max_nfev=1000)
-    _pre_phiT = _solve_eqm(_phiT_de, _sigma_de, _aa_de, _ak_de, z_k=_zk_de, fixed_cost=_fc_de, max_nfev=1000)
+    _pre_phi0 = _solve_eqm(_phi0_de, _sigma_de, _aa_de, _ak_de, z_k=_zk_de, fixed_cost=0.0, max_nfev=1000)
+    _pre_phiT = _solve_eqm(_phiT_de, _sigma_de, _aa_de, _ak_de, z_k=_zk_de, fixed_cost=0.0, max_nfev=1000)
     if _pre_phi0 is not None:
         _ws['phi0'] = np.array([_pre_phi0["c_agg"], _pre_phi0["W"], _pre_phi0["P_M"]])
     if _pre_phiT is not None:
@@ -253,11 +263,10 @@ if __name__ == '__main__':
         verbose=2,
     )
 
-    sigma_cal       = float(result.x[0])
-    alpha_a_cal     = float(result.x[1])
-    alpha_k_cal     = float(result.x[2])
-    z_k_cal         = float(result.x[3])
-    fixed_cost_cal  = float(result.x[4])
+    sigma_cal   = float(result.x[0])
+    alpha_a_cal = float(result.x[1])
+    alpha_k_cal = float(result.x[2])
+    z_k_cal     = float(result.x[3])
     phi0_cal, phiT_cal = _phi_endpoints(sigma_cal)
 
     print("\nCalibration result:")
@@ -267,7 +276,7 @@ if __name__ == '__main__':
     print("  alpha_a_cal    = {:.6f}".format(alpha_a_cal))
     print("  alpha_k_cal    = {:.6f}".format(alpha_k_cal))
     print("  z_k_cal        = {:.6f}".format(z_k_cal))
-    print("  fixed_cost_cal = {:.6f}".format(fixed_cost_cal))
+    print("  fixed_cost     = 0.0 (fixed)")
     print("  phi0           = {:.6f}".format(phi0_cal))
     print("  phiT           = {:.6f}".format(phiT_cal))
     print("  residuals      = {}".format(result.fun))
@@ -279,8 +288,8 @@ if __name__ == '__main__':
 
     print("\nPost-calibration diagnostics:")
 
-    eqm_phi0_cal = _solve_eqm(phi0_cal, sigma_cal, alpha_a_cal, alpha_k_cal, z_k=z_k_cal, fixed_cost=fixed_cost_cal)
-    eqm_phiT_cal = _solve_eqm(phiT_cal, sigma_cal, alpha_a_cal, alpha_k_cal, z_k=z_k_cal, fixed_cost=fixed_cost_cal)
+    eqm_phi0_cal = _solve_eqm(phi0_cal, sigma_cal, alpha_a_cal, alpha_k_cal, z_k=z_k_cal, fixed_cost=0.0)
+    eqm_phiT_cal = _solve_eqm(phiT_cal, sigma_cal, alpha_a_cal, alpha_k_cal, z_k=z_k_cal, fixed_cost=0.0)
 
     pct_neg_phi0_cal = pct_negative(m_grid, k_grid, z_grid, eqm_phi0_cal)
     pct_neg_phiT_cal = pct_negative(m_grid, k_grid, z_grid, eqm_phiT_cal) if eqm_phiT_cal is not None else float('nan')
@@ -288,16 +297,30 @@ if __name__ == '__main__':
     print("  pct_neg  @ phi0: data={:.2f}%,  model={:.2f}%".format(neg_ebitda_base_pct, pct_neg_phi0_cal))
     print("  pct_neg  @ phiT: data={:.2f}%, model={:.2f}%".format(neg_ebitda_final_pct, pct_neg_phiT_cal))
 
+    # Grid boundary diagnostics — check whether m or k upper bound is binding
+    print("\n  Grid boundary mass (top 10% of grid = potential truncation):")
+    if eqm_phi0_cal is not None:
+        d0 = eqm_phi0_cal['Dist']
+        print("    phi0: m_bnd={:.4f}  k_bnd={:.4f}".format(
+            np.sum(d0[-10:, :, :]) / np.sum(d0),
+            np.sum(d0[:, -10:, :]) / np.sum(d0)))
+    if eqm_phiT_cal is not None:
+        dT = eqm_phiT_cal['Dist']
+        print("    phiT: m_bnd={:.4f}  k_bnd={:.4f}".format(
+            np.sum(dT[-10:, :, :]) / np.sum(dT),
+            np.sum(dT[:, -10:, :]) / np.sum(dT)))
+    print("  (If phiT boundary mass >> phi0 boundary mass, upper grid bound is likely binding)")
+
     # -------------------------------------------------------------------------
     # Save calibrated parameters
     # -------------------------------------------------------------------------
 
-    out_arr = np.array([[alpha_a_cal, alpha_k_cal, sigma_cal, z_k_cal, fixed_cost_cal]])
+    out_arr = np.array([[alpha_a_cal, alpha_k_cal, sigma_cal, z_k_cal]])
     np.savetxt(
         out_path,
         out_arr,
         delimiter=",",
-        header="alpha_a,alpha_k,sigma,z_k,fixed_cost",
+        header="alpha_a,alpha_k,sigma,z_k",
         comments="",
     )
     print("\nCalibrated parameters saved to {}".format(out_path))

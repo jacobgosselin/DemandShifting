@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/gpfs/projects/p32386/Demand_Shifting/calibrate_investment_params.py", line 1, in <module>
+    from solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
+  File "/gpfs/projects/p32386/Demand_Shifting/solve_eqm.py", line 1, in <module>
+    import numpy as np
+ModuleNotFoundError: No module named 'numpy'

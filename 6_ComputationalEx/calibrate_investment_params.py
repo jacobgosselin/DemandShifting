@@ -1,5 +1,6 @@
 from solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
 from integrate_dist import median_adv_ratio, median_inv_ratio, pct_negative
+import multiprocessing
 import numpy as np
 import pandas as pd
 import os
@@ -62,6 +63,8 @@ out_path = os.path.join(_DIR, "calibrated_investment_params.csv")
 sigma_init   = 4.0
 alpha_k_init = 0.5
 alpha_a_init = 0.5
+z_k_init       = 1.0
+fixed_cost_init = 0.0
 
 if os.path.isfile(out_path):
     _cal_prev    = pd.read_csv(out_path)
@@ -88,13 +91,15 @@ def _phi_endpoints(sigma):
 # Helper: solve equilibrium with convergence check
 # -----------------------------------------------------------------------------
 
-def _solve_eqm(phi_val, sigma, alpha_a, alpha_k, warm_start=None, max_nfev=1000, vf_maxit=250):
+def _solve_eqm(phi_val, sigma, alpha_a, alpha_k, z_k=1.0, fixed_cost=0.0, warm_start=None, max_nfev=1000, vf_maxit=250):
     params = EqmParams(
         phi=phi_val,
         entry_perc=exit_rate,
         sigma=sigma,
         alpha_a=alpha_a,
         alpha_k=alpha_k,
+        z_k=z_k,
+        fixed_cost=fixed_cost,
         gamma_k=gamma_k,
         gamma_l=gamma_l,
     )
@@ -114,13 +119,12 @@ def _solve_eqm(phi_val, sigma, alpha_a, alpha_k, warm_start=None, max_nfev=1000,
     return eqm
 
 # -----------------------------------------------------------------------------
-# Calibration: (sigma, alpha_a, alpha_k)
+# Calibration: (sigma, alpha_a, alpha_k, z_k, fixed_cost)
 #   Phase 1 — Differential Evolution (global, gradient-free)
 #   Phase 2 — least_squares refinement (local, from DE best point)
 #   Residuals:
 #     pct_neg  @ phi0  =  neg_ebitda_base_pct
 #     pct_neg  @ phiT  =  neg_ebitda_final_pct
-#     med_capx @ phi0  =  med_capx_init
 # -----------------------------------------------------------------------------
 
 # Warm-start state dict (updated in-place by obj_joint during LS phase)
@@ -129,46 +133,49 @@ _ws = {'phi0': None, 'phiT': None}
 
 
 def obj_joint(x, max_nfev=20, vf_maxit=100):
-    sigma_try, alpha_a_try, alpha_k_try = float(x[0]), float(x[1]), float(x[2])
+    sigma_try, alpha_a_try, alpha_k_try, z_k_try, fc_try = (
+        float(x[0]), float(x[1]), float(x[2]), float(x[3]), float(x[4])
+    )
     phi0, phiT = _phi_endpoints(sigma_try)
 
-    eqm_phi0 = _solve_eqm(phi0, sigma_try, alpha_a_try, alpha_k_try, warm_start=_ws['phi0'], max_nfev=max_nfev, vf_maxit=vf_maxit)
+    eqm_phi0 = _solve_eqm(phi0, sigma_try, alpha_a_try, alpha_k_try, z_k=z_k_try, fixed_cost=fc_try, warm_start=_ws['phi0'], max_nfev=max_nfev, vf_maxit=vf_maxit)
     if eqm_phi0 is None:
-        return np.full(3, 1e3)
+        return np.full(2, 1e3)
     _ws['phi0'] = np.array([eqm_phi0["c_agg"], eqm_phi0["W"], eqm_phi0["P_M"]])
 
-    eqm_phiT = _solve_eqm(phiT, sigma_try, alpha_a_try, alpha_k_try, warm_start=_ws['phiT'], max_nfev=max_nfev, vf_maxit=vf_maxit)
+    eqm_phiT = _solve_eqm(phiT, sigma_try, alpha_a_try, alpha_k_try, z_k=z_k_try, fixed_cost=fc_try, warm_start=_ws['phiT'], max_nfev=max_nfev, vf_maxit=vf_maxit)
     if eqm_phiT is None:
-        return np.full(3, 1e3)
+        return np.full(2, 1e3)
     _ws['phiT'] = np.array([eqm_phiT["c_agg"], eqm_phiT["W"], eqm_phiT["P_M"]])
 
-    pct0     = pct_negative(m_grid, k_grid, z_grid, eqm_phi0)
-    pctT     = pct_negative(m_grid, k_grid, z_grid, eqm_phiT)
-    med_capx = median_inv_ratio(m_grid, k_grid, z_grid, eqm_phi0)
+    pct0 = pct_negative(m_grid, k_grid, z_grid, eqm_phi0)
+    pctT = pct_negative(m_grid, k_grid, z_grid, eqm_phiT)
 
     res = np.array([
-        (pct0     - neg_ebitda_base_pct)/100,
-        (pctT     - neg_ebitda_final_pct)/100,
-        (med_capx - med_capx_init),
+        (pct0 - neg_ebitda_base_pct)/100,
+        (pctT - neg_ebitda_final_pct)/100,
     ])
     print(
-        "sig={:.4f} ak={:.4f} aa={:.4f} | "
-        "pct0={:.2f}% pctT={:.2f}% capx={:.4f} | "
-        "||res||={:.6f}".format(sigma_try, alpha_k_try, alpha_a_try,
-                                pct0, pctT, med_capx,
+        "sig={:.4f} ak={:.4f} aa={:.4f} zk={:.4f} fc={:.4f} | "
+        "pct0={:.2f}% pctT={:.2f}% | "
+        "||res||={:.6f}".format(sigma_try, alpha_k_try, alpha_a_try, z_k_try, fc_try,
+                                pct0, pctT,
                                 np.linalg.norm(res))
     )
+    import sys; sys.stdout.flush()
     return res
 
 
-_BOUNDS_LOW  = [1.5, 0.1, 0.1]
-_BOUNDS_HIGH = [10.0, 0.9, 0.9]
+_BOUNDS_LOW  = [1.5, 0.1, 0.1, 0.1, 0.0]   # sigma, alpha_a, alpha_k, z_k, fixed_cost
+_BOUNDS_HIGH = [10.0, 0.9, 0.9, 5.0, 0.5]
 
 def _obj_scalar(x):
     """Scalar sum-of-squares objective for DE (each worker gets its own process copy of _ws)."""
     return float(np.sum(obj_joint(x) ** 2))
 
 if __name__ == '__main__':
+    multiprocessing.set_start_method('fork', force=True)
+
     # -------------------------------------------------------------------------
     # Initialize warm starts from initial guesses
     # -------------------------------------------------------------------------
@@ -176,8 +183,8 @@ if __name__ == '__main__':
     _phi0_init, _phiT_init = _phi_endpoints(sigma_init)
     print("\nInitial phi endpoints: phi0={:.4f}, phiT={:.4f}".format(_phi0_init, _phiT_init))
 
-    _pre_phi0 = _solve_eqm(_phi0_init, sigma_init, alpha_a_init, alpha_k_init, max_nfev=1000)
-    _pre_phiT = _solve_eqm(_phiT_init, sigma_init, alpha_a_init, alpha_k_init, max_nfev=1000)
+    _pre_phi0 = _solve_eqm(_phi0_init, sigma_init, alpha_a_init, alpha_k_init, z_k=z_k_init, fixed_cost=fixed_cost_init, max_nfev=1000)
+    _pre_phiT = _solve_eqm(_phiT_init, sigma_init, alpha_a_init, alpha_k_init, z_k=z_k_init, fixed_cost=fixed_cost_init, max_nfev=1000)
     if _pre_phi0 is not None:
         _ws['phi0'] = np.array([_pre_phi0["c_agg"], _pre_phi0["W"], _pre_phi0["P_M"]])
     if _pre_phiT is not None:
@@ -189,8 +196,8 @@ if __name__ == '__main__':
 
     print("\n" + "=" * 60)
     print("Phase 1: Differential Evolution (global search)")
-    print("  Targets: med_capx={:.4f}, pct_neg@phi0={:.2f}%, pct_neg@phiT={:.2f}%".format(
-        med_capx_init, neg_ebitda_base_pct, neg_ebitda_final_pct))
+    print("  Targets: pct_neg@phi0={:.2f}%, pct_neg@phiT={:.2f}%".format(
+        neg_ebitda_base_pct, neg_ebitda_final_pct))
     print("=" * 60)
 
     de_result = differential_evolution(
@@ -199,28 +206,29 @@ if __name__ == '__main__':
         seed=42,
         strategy="best1bin",
         maxiter=300,
-        popsize=5,          # 5 × 3 = 15 candidates per generation
+        popsize=5,          # 5 × 5 = 25 candidates per generation
         tol=1e-4,
         mutation=(0.5, 1.0),
         recombination=0.7,
-        workers=-1,          # parallel across all available CPUs (set by --cpus-per-task in SLURM)
+        workers=-1,           # parallel workers
         updating='deferred', # required for workers > 1; set explicitly to suppress scipy warning
         polish=False,        # we polish with least_squares below
         disp=True,
     )
 
     print("\nDE result:  success={},  cost={:.6f}".format(de_result.success, de_result.fun))
-    print("  sigma={:.4f}  alpha_a={:.4f}  alpha_k={:.4f}".format(de_result.x[0], de_result.x[1], de_result.x[2]))
+    print("  sigma={:.4f}  alpha_a={:.4f}  alpha_k={:.4f}  z_k={:.4f}  fixed_cost={:.4f}".format(
+        de_result.x[0], de_result.x[1], de_result.x[2], de_result.x[3], de_result.x[4]))
 
     # -------------------------------------------------------------------------
     # Re-seed warm starts from DE best point before LS refinement
     # -------------------------------------------------------------------------
 
-    _sigma_de, _aa_de, _ak_de = de_result.x
+    _sigma_de, _aa_de, _ak_de, _zk_de, _fc_de = de_result.x
     _phi0_de, _phiT_de = _phi_endpoints(_sigma_de)
     print("\nRe-seeding warm starts from DE solution ...")
-    _pre_phi0 = _solve_eqm(_phi0_de, _sigma_de, _aa_de, _ak_de, max_nfev=1000)
-    _pre_phiT = _solve_eqm(_phiT_de, _sigma_de, _aa_de, _ak_de, max_nfev=1000)
+    _pre_phi0 = _solve_eqm(_phi0_de, _sigma_de, _aa_de, _ak_de, z_k=_zk_de, fixed_cost=_fc_de, max_nfev=1000)
+    _pre_phiT = _solve_eqm(_phiT_de, _sigma_de, _aa_de, _ak_de, z_k=_zk_de, fixed_cost=_fc_de, max_nfev=1000)
     if _pre_phi0 is not None:
         _ws['phi0'] = np.array([_pre_phi0["c_agg"], _pre_phi0["W"], _pre_phi0["P_M"]])
     if _pre_phiT is not None:
@@ -245,21 +253,25 @@ if __name__ == '__main__':
         verbose=2,
     )
 
-    sigma_cal   = float(result.x[0])
-    alpha_a_cal = float(result.x[1])
-    alpha_k_cal = float(result.x[2])
+    sigma_cal       = float(result.x[0])
+    alpha_a_cal     = float(result.x[1])
+    alpha_k_cal     = float(result.x[2])
+    z_k_cal         = float(result.x[3])
+    fixed_cost_cal  = float(result.x[4])
     phi0_cal, phiT_cal = _phi_endpoints(sigma_cal)
 
     print("\nCalibration result:")
-    print("  success      = {}".format(result.success))
-    print("  message      = {}".format(result.message))
-    print("  sigma_cal    = {:.6f}".format(sigma_cal))
-    print("  alpha_a_cal  = {:.6f}".format(alpha_a_cal))
-    print("  alpha_k_cal  = {:.6f}".format(alpha_k_cal))
-    print("  phi0         = {:.6f}".format(phi0_cal))
-    print("  phiT         = {:.6f}".format(phiT_cal))
-    print("  residuals    = {}".format(result.fun))
-    print("  cost         = {:.8f}".format(result.cost))
+    print("  success        = {}".format(result.success))
+    print("  message        = {}".format(result.message))
+    print("  sigma_cal      = {:.6f}".format(sigma_cal))
+    print("  alpha_a_cal    = {:.6f}".format(alpha_a_cal))
+    print("  alpha_k_cal    = {:.6f}".format(alpha_k_cal))
+    print("  z_k_cal        = {:.6f}".format(z_k_cal))
+    print("  fixed_cost_cal = {:.6f}".format(fixed_cost_cal))
+    print("  phi0           = {:.6f}".format(phi0_cal))
+    print("  phiT           = {:.6f}".format(phiT_cal))
+    print("  residuals      = {}".format(result.fun))
+    print("  cost           = {:.8f}".format(result.cost))
 
     # -------------------------------------------------------------------------
     # Post-calibration diagnostics
@@ -267,14 +279,12 @@ if __name__ == '__main__':
 
     print("\nPost-calibration diagnostics:")
 
-    eqm_phi0_cal = _solve_eqm(phi0_cal, sigma_cal, alpha_a_cal, alpha_k_cal)
-    eqm_phiT_cal = _solve_eqm(phiT_cal, sigma_cal, alpha_a_cal, alpha_k_cal)
+    eqm_phi0_cal = _solve_eqm(phi0_cal, sigma_cal, alpha_a_cal, alpha_k_cal, z_k=z_k_cal, fixed_cost=fixed_cost_cal)
+    eqm_phiT_cal = _solve_eqm(phiT_cal, sigma_cal, alpha_a_cal, alpha_k_cal, z_k=z_k_cal, fixed_cost=fixed_cost_cal)
 
-    med_capx_model   = median_inv_ratio(m_grid, k_grid, z_grid, eqm_phi0_cal)
     pct_neg_phi0_cal = pct_negative(m_grid, k_grid, z_grid, eqm_phi0_cal)
     pct_neg_phiT_cal = pct_negative(m_grid, k_grid, z_grid, eqm_phiT_cal) if eqm_phiT_cal is not None else float('nan')
 
-    print("  med_capx @ phi0: data={:.4f},           model={:.4f}".format(med_capx_init, med_capx_model))
     print("  pct_neg  @ phi0: data={:.2f}%,  model={:.2f}%".format(neg_ebitda_base_pct, pct_neg_phi0_cal))
     print("  pct_neg  @ phiT: data={:.2f}%, model={:.2f}%".format(neg_ebitda_final_pct, pct_neg_phiT_cal))
 
@@ -282,12 +292,12 @@ if __name__ == '__main__':
     # Save calibrated parameters
     # -------------------------------------------------------------------------
 
-    out_arr = np.array([[alpha_a_cal, alpha_k_cal, sigma_cal]])
+    out_arr = np.array([[alpha_a_cal, alpha_k_cal, sigma_cal, z_k_cal, fixed_cost_cal]])
     np.savetxt(
         out_path,
         out_arr,
         delimiter=",",
-        header="alpha_a,alpha_k,sigma",
+        header="alpha_a,alpha_k,sigma,z_k,fixed_cost",
         comments="",
     )
     print("\nCalibrated parameters saved to {}".format(out_path))

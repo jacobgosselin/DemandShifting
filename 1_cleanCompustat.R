@@ -30,28 +30,29 @@ vars_of_interest <- c("gvkey", "conm", "fyear", "datadate", "indfmt", "state", "
 # and put all nominal variables in real terms (deflate by GDP deflator, then *100)
 compustat_preMU <- compustat %>%
   # deflate all nominal variables
+  # also multiply by 1e6, to get dollars (Compustat stores in millions)
   mutate(mkt_val = prcc_f * csho + dltt + dlc - act,
-         mkt_val = mkt_val / deflator * 100,
-         ebitda = ebitda/deflator * 100,
-         ni = ni / deflator * 100,
-         pi = pi / deflator * 100,
-         oiadp = oiadp / deflator * 100,
-         oibdp = oibdp / deflator * 100,
-         dp = dp / deflator * 100,
-         xint = xint/deflator * 100,
-         sale = sale / deflator * 100,
-         cogs = cogs / deflator * 100,
-         xsga = xsga / deflator * 100,
-         xrd = xrd / deflator * 100,
-         rdip = rdip / deflator * 100,
-         capx = capx / deflator * 100,
-         txpd = txpd / deflator * 100,
-         k_int = k_int / deflator * 100,
-         k_int_org = k_int_org / deflator * 100,
-         k_int_know = k_int_know / deflator * 100,
-         ppegt = ppegt / deflator * 100,
-         ppent = ppent / deflator * 100,
-         at = at / deflator * 100) %>%
+         mkt_val = mkt_val / deflator * 100 * 1e6,
+         ebitda = ebitda/deflator * 100 * 1e6,
+         ni = ni / deflator * 100 * 1e6,
+         pi = pi / deflator * 100 * 1e6,
+         oiadp = oiadp / deflator * 100 * 1e6,
+         oibdp = oibdp / deflator * 100 * 1e6,
+         dp = dp / deflator * 100 * 1e6,
+         xint = xint/deflator * 100 * 1e6,
+         sale = sale / deflator * 100 * 1e6,
+         cogs = cogs / deflator * 100 * 1e6,
+         xsga = xsga / deflator * 100 * 1e6,
+         xrd = xrd / deflator * 100 * 1e6,
+         rdip = rdip / deflator * 100 * 1e6,
+         capx = capx / deflator * 100 * 1e6,
+         txpd = txpd / deflator * 100 * 1e6,
+         k_int = k_int / deflator * 100 * 1e6,
+         k_int_org = k_int_org / deflator * 100 * 1e6,
+         k_int_know = k_int_know / deflator * 100 * 1e6,
+         ppegt = ppegt / deflator * 100 * 1e6,
+         ppent = ppent / deflator * 100 * 1e6,
+         at = at / deflator * 100 * 1e6) %>%
   select(all_of(vars_of_interest))
 
 

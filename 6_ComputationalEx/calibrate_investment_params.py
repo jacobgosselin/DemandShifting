@@ -55,9 +55,6 @@ coefs_fixed = _coefs_df[["year", "coef"]].values  # shape (T, 2)
 print("\nCalibration targets:")
 print("  pct_neg          @ phi0 = {:.4f}%".format(neg_ebitda_base_pct))
 print("  pct_neg          @ phiT = {:.4f}%".format(neg_ebitda_final_pct))
-print("  log_chg_sd_earn         = {:.4f}".format(log_change_sd_earnings))
-print("  log_chg_sd_sales        = {:.4f}".format(log_change_sd_sales))
-print("  (diag) log_chg_avg_ebitda = {:.4f}".format(log_change_avg_ebitda))
 
 # -----------------------------------------------------------------------------
 # Load initial guesses from previous calibration (or use defaults)
@@ -140,11 +137,9 @@ def _solve_eqm(phi_val, sigma, alpha_a, alpha_k, z_grid, Pi,
 # Calibration: (sigma, alpha_a, alpha_k, rho, sigma_eps)
 #   Phase 1 — Differential Evolution (global, gradient-free)
 #   Phase 2 — least_squares refinement (local, from DE best point)
-#   Residuals (4):
+#   Residuals (2):
 #     pct_neg          @ phi0  =  neg_ebitda_base_pct
 #     pct_neg          @ phiT  =  neg_ebitda_final_pct
-#     log_chg_sd_earn          =  log_change_sd_earnings
-#     log_chg_sd_sales         =  log_change_sd_sales
 # -----------------------------------------------------------------------------
 
 # Warm-start state dict (updated in-place by obj_joint during LS phase)
@@ -167,7 +162,7 @@ def obj_joint(x, max_nfev=20, vf_maxit=100):
                            fixed_cost=0.0, warm_start=_ws['phi0'],
                            max_nfev=max_nfev, vf_maxit=vf_maxit)
     if eqm_phi0 is None:
-        return np.full(4, 1e3)
+        return np.full(2, 1e3)
     _ws['phi0'] = np.array([eqm_phi0["c_agg"], eqm_phi0["W"], eqm_phi0["P_M"]])
 
     eqm_phiT = _solve_eqm(phiT, sigma_try, alpha_a_try, alpha_k_try,
@@ -175,44 +170,25 @@ def obj_joint(x, max_nfev=20, vf_maxit=100):
                            fixed_cost=0.0, warm_start=_ws['phiT'],
                            max_nfev=max_nfev, vf_maxit=vf_maxit)
     if eqm_phiT is None:
-        return np.full(4, 1e3)
+        return np.full(2, 1e3)
     _ws['phiT'] = np.array([eqm_phiT["c_agg"], eqm_phiT["W"], eqm_phiT["P_M"]])
 
     pct0  = pct_negative(m_grid, k_grid, z_grid_try, eqm_phi0)
     pctT  = pct_negative(m_grid, k_grid, z_grid_try, eqm_phiT)
 
-    _, earn_cdf0  = est_dist(m_grid, k_grid, z_grid_try, eqm_phi0, 'earnings')
-    _, earn_cdfT  = est_dist(m_grid, k_grid, z_grid_try, eqm_phiT, 'earnings')
-    _, sales_cdf0 = est_dist(m_grid, k_grid, z_grid_try, eqm_phi0, 'revenue')
-    _, sales_cdfT = est_dist(m_grid, k_grid, z_grid_try, eqm_phiT, 'revenue')
-    sd_earn0  = est_sd(earn_cdf0)
-    sd_earnT  = est_sd(earn_cdfT)
-    sd_sales0 = est_sd(sales_cdf0)
-    sd_salesT = est_sd(sales_cdfT)
-    log_chg_sd_earn  = np.log(sd_earnT)  - np.log(sd_earn0)
-    log_chg_sd_sales = np.log(sd_salesT) - np.log(sd_sales0)
-
-    # diagnostic (not targeted)
-    er0 = mean_earnings(m_grid, k_grid, z_grid_try, eqm_phi0)
-    erT = mean_earnings(m_grid, k_grid, z_grid_try, eqm_phiT)
-    log_chg_mean_earn = np.log(erT) - np.log(er0) if er0 > 0 and erT > 0 else np.nan
-
     res = np.array([
         (pct0 - neg_ebitda_base_pct) / 100,
         (pctT - neg_ebitda_final_pct) / 100,
-        log_chg_sd_earn  - log_change_sd_earnings,
-        log_chg_sd_sales - log_change_sd_sales,
     ])
     if not np.all(np.isfinite(res)):
-        return np.full(4, 1e3)
+        return np.full(2, 1e3)
 
     print(
         "sig={:.4f} aa={:.4f} ak={:.4f} rho={:.4f} se={:.4f} | "
-        "pct0={:.2f}% pctT={:.2f}% dlnSDE={:.4f} dlnSDS={:.4f} dlnME={:.4f} | "
+        "pct0={:.2f}% pctT={:.2f}% | "
         "||res||={:.6f}".format(
             sigma_try, alpha_a_try, alpha_k_try, rho_try, sigma_eps_try,
-            pct0, pctT, log_chg_sd_earn, log_chg_sd_sales, log_chg_mean_earn,
-            np.linalg.norm(res))
+            pct0, pctT, np.linalg.norm(res))
     )
     d0, dT = eqm_phi0['Dist'], eqm_phiT['Dist']
     print(
@@ -261,8 +237,6 @@ if __name__ == '__main__':
     print("Phase 1: Differential Evolution (global search)")
     print("  Targets: pct_neg@phi0={:.2f}%  pct_neg@phiT={:.2f}%".format(
         neg_ebitda_base_pct, neg_ebitda_final_pct))
-    print("  Targets: log_chg_sd_earn={:.4f}  log_chg_sd_sales={:.4f}".format(
-        log_change_sd_earnings, log_change_sd_sales))
     print("=" * 60)
 
     de_result = differential_evolution(

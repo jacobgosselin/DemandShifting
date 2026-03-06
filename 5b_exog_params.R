@@ -60,10 +60,16 @@ entry_rate_byyear <- entry_data %>%
 entry_rate <- mean(entry_rate_byyear$entry_rate, na.rm = TRUE)
 struct_data$entry_rate <- entry_rate
 
+# Sigma from markups: sigma = mu / (mu - 1) ----
+sigma_vals <- analysis_data$mu / (analysis_data$mu - 1)
+sigma_val  <- median(sigma_vals, na.rm = TRUE)
+struct_data$sigma <- sigma_val
+
 # Calibration moment targets ----
 base_year  <- analysis_data %>% filter(date == 1980)
 final_year <- analysis_data %>% filter(date == 2019)
 
+sga_sale_median              <- median(base_year$sga_sale,                               na.rm = TRUE)
 capx_sale_median             <- median(base_year$capx_sale,                              na.rm = TRUE)
 sga_sale_negebitda_median    <- median(base_year$sga_sale[base_year$neg_ebitda == 1],    na.rm = TRUE)
 capx_sale_negebitda_median   <- median(base_year$capx_sale[base_year$neg_ebitda == 1],   na.rm = TRUE)
@@ -76,6 +82,7 @@ log_change_sd_earnings       <- log(sd(final_year$ebitda,   na.rm = TRUE)) -
 log_change_sd_sales          <- log(sd(final_year$sale,     na.rm = TRUE)) -
                                 log(sd(base_year$sale,      na.rm = TRUE))
 
+struct_data$med_sga_sale            <- sga_sale_median
 struct_data$med_capx_sale           <- capx_sale_median
 struct_data$med_sales_negebitda     <- sga_sale_negebitda_median
 struct_data$med_capx_sale_negebitda <- capx_sale_negebitda_median
@@ -87,8 +94,19 @@ struct_data$log_change_sd_sales     <- log_change_sd_sales
 
 write.csv(struct_data, file.path(REPO_DIR, "6_ComputationalEx", "structural_parameters.csv"), row.names = FALSE)
 
-cat("4c_exog_params.R complete.\n")
+# Year-by-year pct_neg ----
+pct_neg_byyear <- analysis_data %>%
+  group_by(date) %>%
+  summarise(pct_neg = mean(neg_ebitda, na.rm = TRUE) * 100) %>%
+  rename(year = date)
+write.csv(pct_neg_byyear,
+          file.path(REPO_DIR, "6_ComputationalEx", "pct_neg_byyear.csv"),
+          row.names = FALSE)
+
+cat("5b_exog_params.R complete.\n")
 cat("rho:", struct_data$rho, "  sigma_xi:", struct_data$sigma_xi, "\n")
 cat("gamma_l:", struct_data$gamma_l, "  gamma_k:", struct_data$gamma_k, "\n")
+cat("sigma:", sigma_val, "\n")
 cat("exit_rate:", exit_rate, "  entry_rate:", entry_rate, "\n")
 cat("neg_ebitda_base:", neg_ebitda_base, "  neg_ebitda_final:", neg_ebitda_final, "\n")
+cat("med_sga_sale:", sga_sale_median, "  med_capx_sale:", capx_sale_median, "\n")

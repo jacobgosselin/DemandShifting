@@ -1,10 +1,10 @@
 from solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
-from integrate_dist import pct_negative, mean_earnings, est_dist, est_sd
+from integrate_dist import pct_negative, median_adv_ratio, median_inv_ratio
 import multiprocessing
 import numpy as np
 import pandas as pd
 import os
-from scipy.optimize import least_squares, differential_evolution
+from scipy.optimize import least_squares, differential_evolution, brentq
 
 
 # -----------------------------------------------------------------------------
@@ -16,45 +16,53 @@ from scipy.optimize import least_squares, differential_evolution
 _DIR = os.path.dirname(__file__)
 
 struct_params = pd.read_csv(os.path.join(_DIR, "structural_parameters.csv"))
-exit_rate             = struct_params["exit_rate"].iloc[0]
-neg_ebitda_base_pct   = struct_params["neg_ebitda_base"].iloc[0] * 100
-neg_ebitda_final_pct  = struct_params["neg_ebitda_final"].iloc[0] * 100
-log_change_avg_ebitda = struct_params["log_change_avg_ebitda"].iloc[0]
-log_change_sd_earnings = struct_params["log_change_sd_earnings"].iloc[0]
-log_change_sd_sales    = struct_params["log_change_sd_sales"].iloc[0]
+
+# Fixed structural parameters (from ACF estimation and markup inversion)
+gamma_l   = struct_params["gamma_l"].iloc[0]
+gamma_k   = struct_params["gamma_k"].iloc[0]
+rho       = struct_params["rho"].iloc[0]
+sigma_eps = struct_params["sigma_xi"].iloc[0]
+sigma     = struct_params["sigma"].iloc[0]
+exit_rate = struct_params["exit_rate"].iloc[0]
+
+print("\nFixed structural parameters:")
+print("  gamma_k    = {:.6f}".format(gamma_k))
+print("  gamma_l    = {:.6f}".format(gamma_l))
+print("  rho        = {:.6f}".format(rho))
+print("  sigma_eps  = {:.6f}".format(sigma_eps))
+print("  sigma      = {:.6f}".format(sigma))
+print("  exit_rate  = {:.6f}".format(exit_rate))
+
+# Calibration moment targets
+med_sga_sale        = struct_params["med_sga_sale"].iloc[0]
+med_capx_sale       = struct_params["med_capx_sale"].iloc[0]
+neg_ebitda_base_pct = struct_params["neg_ebitda_base"].iloc[0] * 100
+
+print("\nCalibration targets (base period):")
+print("  med_sga/rev  = {:.4f}".format(med_sga_sale))
+print("  med_capx/rev = {:.4f}".format(med_capx_sale))
+print("  pct_neg      = {:.4f}%".format(neg_ebitda_base_pct))
+
+# Year-by-year pct_neg for phi path inversion
+pct_neg_df   = pd.read_csv(os.path.join(_DIR, "pct_neg_byyear.csv"))
+years        = pct_neg_df["year"].values.astype(int)
+pct_neg_data = pct_neg_df["pct_neg"].values   # already in percent (0-100)
+
+print("\nLoaded pct_neg by year: {} years ({}-{})".format(
+    len(years), years[0], years[-1]))
 
 
 # -----------------------------------------------------------------------------
-# Fixed production function parameters
-# -----------------------------------------------------------------------------
-
-gamma_l = 2.0 / 3
-gamma_k = 1.0 / 3
-
-print("\nProduction function parameters (fixed):")
-print("  gamma_k = {:.6f},  gamma_l = {:.6f}".format(gamma_k, gamma_l))
-
-
-# -----------------------------------------------------------------------------
-# Grids (m and k only; z_grid is recomputed inside objective per rho/sigma_eps)
+# Grids (m and k only; z_grid is pre-computed from fixed rho/sigma_eps)
 # -----------------------------------------------------------------------------
 
 from solve_vf import discretize_productivity, discretize_choices
 
-m_grid = discretize_choices(1e-3, 50, 100, type="exp")
-k_grid = discretize_choices(1e-3, 50, 100, type="exp")
+m_grid = discretize_choices(1e-3, 100, 100, type="exp")
+k_grid = discretize_choices(1e-3, 100, 100, type="exp")
 
-# Load phi trajectory from R output (4b_mstock_coef.R)
-_coefs_df   = pd.read_csv(os.path.join(_DIR, "sales_elasticity_m_by_year.csv"))
-coefs_fixed = _coefs_df[["year", "coef"]].values  # shape (T, 2)
-
-# -----------------------------------------------------------------------------
-# Calibration targets
-# -----------------------------------------------------------------------------
-
-print("\nCalibration targets:")
-print("  pct_neg          @ phi0 = {:.4f}%".format(neg_ebitda_base_pct))
-print("  pct_neg          @ phiT = {:.4f}%".format(neg_ebitda_final_pct))
+# z_grid is fixed (rho, sigma_eps not calibrated)
+z_grid, _, Pi = discretize_productivity(rho, sigma_eps, 10)
 
 # -----------------------------------------------------------------------------
 # Load initial guesses from previous calibration (or use defaults)
@@ -62,44 +70,30 @@ print("  pct_neg          @ phiT = {:.4f}%".format(neg_ebitda_final_pct))
 
 out_path = os.path.join(_DIR, "calibrated_investment_params.csv")
 
-sigma_init     = 4.0
-alpha_k_init   = 0.5
-alpha_a_init   = 0.5
-rho_init       = 0.9
-sigma_eps_init = 0.1
+alpha_a_init = 0.5
+alpha_k_init = 0.5
+phi_0_init   = 0.1
 
 if os.path.isfile(out_path):
     _cal_prev = pd.read_csv(out_path)
-    sigma_init   = float(_cal_prev["sigma"].iloc[0])
-    alpha_k_init = float(_cal_prev["alpha_k"].iloc[0])
-    alpha_a_init = float(_cal_prev["alpha_a"].iloc[0])
-    if "rho" in _cal_prev.columns:
-        rho_init = float(_cal_prev["rho"].iloc[0])
-    if "sigma_eps" in _cal_prev.columns:
-        sigma_eps_init = float(_cal_prev["sigma_eps"].iloc[0])
+    if "alpha_a" in _cal_prev.columns:
+        alpha_a_init = float(_cal_prev["alpha_a"].iloc[0])
+    if "alpha_k" in _cal_prev.columns:
+        alpha_k_init = float(_cal_prev["alpha_k"].iloc[0])
+    if "phi_1980" in _cal_prev.columns:
+        phi_0_init = float(_cal_prev["phi_1980"].iloc[0])
     print("\nLoaded initial guesses from {}:".format(out_path))
-    print("  sigma_init     = {:.6f}".format(sigma_init))
-    print("  alpha_k_init   = {:.6f}".format(alpha_k_init))
-    print("  alpha_a_init   = {:.6f}".format(alpha_a_init))
-    print("  rho_init       = {:.6f}".format(rho_init))
-    print("  sigma_eps_init = {:.6f}".format(sigma_eps_init))
+    print("  alpha_a_init = {:.6f}".format(alpha_a_init))
+    print("  alpha_k_init = {:.6f}".format(alpha_k_init))
+    print("  phi_0_init   = {:.6f}".format(phi_0_init))
 else:
     print("\nNo existing calibrated parameters found; using defaults.")
-
-# -----------------------------------------------------------------------------
-# Helper: phi endpoints as a function of sigma
-# -----------------------------------------------------------------------------
-
-def _phi_endpoints(sigma):
-    """Compute phi at t=0 and t=T from sigma and the pre-computed coefs array."""
-    phi_track = coefs_fixed[:, 1] * ((1 - gamma_l) * sigma + gamma_l) - 1
-    return phi_track[0], phi_track[-1]
 
 # -----------------------------------------------------------------------------
 # Helper: solve equilibrium with convergence check
 # -----------------------------------------------------------------------------
 
-def _solve_eqm(phi_val, sigma, alpha_a, alpha_k, z_grid, Pi,
+def _solve_eqm(phi_val, alpha_a, alpha_k,
                fixed_cost=0.0, warm_start=None, max_nfev=1000, vf_maxit=250):
     params = EqmParams(
         phi=phi_val,
@@ -118,116 +112,93 @@ def _solve_eqm(phi_val, sigma, alpha_a, alpha_k, z_grid, Pi,
             start=warm_start, max_nfev=max_nfev, vf_maxit=vf_maxit,
         )
     except Exception as e:
-        print("  [FAIL] phi={:.4f} sigma={:.4f} -> {}".format(phi_val, sigma, e))
+        print("  [FAIL] phi={:.4f} -> {}".format(phi_val, e))
         return None
     ls_success = eqm.get("ls_success", False)
     res_norm = float(np.linalg.norm(eqm.get("residuals", np.array([np.inf, np.inf, np.inf]))))
     if (not ls_success) or not np.isfinite(res_norm) or res_norm > 1e-4:
         dist = eqm.get("Dist", None)
         print(
-        "BAD EQM! Bounds: m={:.3f} k={:.3f}".format(
-            np.sum(dist[-10:, :, :]) / np.sum(dist) if dist is not None else float('nan'),
-            np.sum(dist[:, -10:, :]) / np.sum(dist) if dist is not None else float('nan')
-        )
+            "BAD EQM! Bounds: m={:.3f} k={:.3f}".format(
+                np.sum(dist[-10:, :, :]) / np.sum(dist) if dist is not None else float('nan'),
+                np.sum(dist[:, -10:, :]) / np.sum(dist) if dist is not None else float('nan')
+            )
         )
         return None
     return eqm
 
+
 # -----------------------------------------------------------------------------
-# Calibration: (sigma, alpha_a, alpha_k, rho, sigma_eps)
+# Calibration: (alpha_a, alpha_k, phi_1980)
+#   Targets:
+#     median adv_ratio  =  med_sga_sale
+#     median inv_ratio  =  med_capx_sale
+#     pct_neg           =  neg_ebitda_base_pct
 #   Phase 1 — Differential Evolution (global, gradient-free)
 #   Phase 2 — least_squares refinement (local, from DE best point)
-#   Residuals (2):
-#     pct_neg          @ phi0  =  neg_ebitda_base_pct
-#     pct_neg          @ phiT  =  neg_ebitda_final_pct
 # -----------------------------------------------------------------------------
 
-# Warm-start state dict (updated in-place by obj_joint during LS phase)
-# Defined at module level so each spawned worker process gets its own copy.
-_ws = {'phi0': None, 'phiT': None}
+_ws_base = {'eqm': None}
 
 
-def obj_joint(x, max_nfev=20, vf_maxit=100):
-    sigma_try, alpha_a_try, alpha_k_try, rho_try, sigma_eps_try = (
-        float(x[0]), float(x[1]), float(x[2]), float(x[3]), float(x[4])
+def obj_base(x, max_nfev=20, vf_maxit=100):
+    alpha_a_try, alpha_k_try, phi_try = (
+        float(x[0]), float(x[1]), float(x[2])
     )
 
-    # Recompute z_grid for this (rho, sigma_eps) candidate
-    z_grid_try, _, Pi_try = discretize_productivity(rho_try, sigma_eps_try, 10)
+    warm = (np.array([_ws_base['eqm']['c_agg'], _ws_base['eqm']['W'], _ws_base['eqm']['P_M']])
+            if _ws_base['eqm'] is not None else None)
 
-    phi0, phiT = _phi_endpoints(sigma_try)
+    eqm = _solve_eqm(phi_try, alpha_a_try, alpha_k_try,
+                     fixed_cost=0.0, warm_start=warm,
+                     max_nfev=max_nfev, vf_maxit=vf_maxit)
+    if eqm is None:
+        return np.full(3, 1e3)
+    _ws_base['eqm'] = eqm
 
-    eqm_phi0 = _solve_eqm(phi0, sigma_try, alpha_a_try, alpha_k_try,
-                           z_grid_try, Pi_try,
-                           fixed_cost=0.0, warm_start=_ws['phi0'],
-                           max_nfev=max_nfev, vf_maxit=vf_maxit)
-    if eqm_phi0 is None:
-        return np.full(2, 1e3)
-    _ws['phi0'] = np.array([eqm_phi0["c_agg"], eqm_phi0["W"], eqm_phi0["P_M"]])
-
-    eqm_phiT = _solve_eqm(phiT, sigma_try, alpha_a_try, alpha_k_try,
-                           z_grid_try, Pi_try,
-                           fixed_cost=0.0, warm_start=_ws['phiT'],
-                           max_nfev=max_nfev, vf_maxit=vf_maxit)
-    if eqm_phiT is None:
-        return np.full(2, 1e3)
-    _ws['phiT'] = np.array([eqm_phiT["c_agg"], eqm_phiT["W"], eqm_phiT["P_M"]])
-
-    pct0  = pct_negative(m_grid, k_grid, z_grid_try, eqm_phi0)
-    pctT  = pct_negative(m_grid, k_grid, z_grid_try, eqm_phiT)
+    adv_med = median_adv_ratio(m_grid, k_grid, z_grid, eqm)
+    inv_med = median_inv_ratio(m_grid, k_grid, z_grid, eqm)
+    pct     = pct_negative(m_grid, k_grid, z_grid, eqm)
 
     res = np.array([
-        (pct0 - neg_ebitda_base_pct) / 100,
-        (pctT - neg_ebitda_final_pct) / 100,
+        (adv_med - med_sga_sale)        / med_sga_sale,
+        (inv_med - med_capx_sale)       / med_capx_sale,
+        (pct     - neg_ebitda_base_pct) / 100,
     ])
     if not np.all(np.isfinite(res)):
-        return np.full(2, 1e3)
+        return np.full(3, 1e3)
 
     print(
-        "sig={:.4f} aa={:.4f} ak={:.4f} rho={:.4f} se={:.4f} | "
-        "pct0={:.2f}% pctT={:.2f}% | "
+        "aa={:.4f} ak={:.4f} phi0={:.4f} | "
+        "adv={:.4f} inv={:.4f} pct={:.2f}% | "
         "||res||={:.6f}".format(
-            sigma_try, alpha_a_try, alpha_k_try, rho_try, sigma_eps_try,
-            pct0, pctT, np.linalg.norm(res))
-    )
-    d0, dT = eqm_phi0['Dist'], eqm_phiT['Dist']
-    print(
-        "  bnd: phi0 m={:.3f} k={:.3f} | phiT m={:.3f} k={:.3f}".format(
-            np.sum(d0[-10:, :, :]) / np.sum(d0),
-            np.sum(d0[:, -10:, :]) / np.sum(d0),
-            np.sum(dT[-10:, :, :]) / np.sum(dT),
-            np.sum(dT[:, -10:, :]) / np.sum(dT))
+            alpha_a_try, alpha_k_try, phi_try,
+            adv_med, inv_med, pct,
+            np.linalg.norm(res))
     )
     import sys; sys.stdout.flush()
     return res
 
 
-_BOUNDS_LOW  = [1.5, 0.1, 0.1, 0.5,  0.01]  # sigma, alpha_a, alpha_k, rho, sigma_eps
-_BOUNDS_HIGH = [10.0, 0.9, 0.9, 1.0,  0.30]
+_BOUNDS_LOW  = [0.1, 0.1, -0.5]   # alpha_a, alpha_k, phi_1980
+_BOUNDS_HIGH = [0.9, 0.9,  1.0]
 
 def _obj_scalar(x):
-    """Scalar sum-of-squares objective for DE (each worker gets its own process copy of _ws)."""
-    return float(np.sum(obj_joint(x) ** 2))
+    return float(np.sum(obj_base(x) ** 2))
+
 
 if __name__ == '__main__':
     multiprocessing.set_start_method('fork', force=True)
 
     # -------------------------------------------------------------------------
-    # Initialize warm starts from initial guesses
+    # Initialize warm start from initial guesses
     # -------------------------------------------------------------------------
 
-    _z_grid_init, _, _Pi_init = discretize_productivity(rho_init, sigma_eps_init, 10)
-    _phi0_init, _phiT_init = _phi_endpoints(sigma_init)
-    print("\nInitial phi endpoints: phi0={:.4f}, phiT={:.4f}".format(_phi0_init, _phiT_init))
-
-    _pre_phi0 = _solve_eqm(_phi0_init, sigma_init, alpha_a_init, alpha_k_init,
-                            _z_grid_init, _Pi_init, fixed_cost=0.0, max_nfev=1000)
-    _pre_phiT = _solve_eqm(_phiT_init, sigma_init, alpha_a_init, alpha_k_init,
-                            _z_grid_init, _Pi_init, fixed_cost=0.0, max_nfev=1000)
-    if _pre_phi0 is not None:
-        _ws['phi0'] = np.array([_pre_phi0["c_agg"], _pre_phi0["W"], _pre_phi0["P_M"]])
-    if _pre_phiT is not None:
-        _ws['phiT'] = np.array([_pre_phiT["c_agg"], _pre_phiT["W"], _pre_phiT["P_M"]])
+    print("\nInitializing warm start ...")
+    _pre = _solve_eqm(phi_0_init, alpha_a_init, alpha_k_init,
+                      fixed_cost=0.0, max_nfev=1000)
+    if _pre is not None:
+        _ws_base['eqm'] = _pre
 
     # -------------------------------------------------------------------------
     # Phase 1: Differential Evolution — global search
@@ -235,8 +206,8 @@ if __name__ == '__main__':
 
     print("\n" + "=" * 60)
     print("Phase 1: Differential Evolution (global search)")
-    print("  Targets: pct_neg@phi0={:.2f}%  pct_neg@phiT={:.2f}%".format(
-        neg_ebitda_base_pct, neg_ebitda_final_pct))
+    print("  Targets: adv/rev={:.4f}  capx/rev={:.4f}  pct_neg@1980={:.2f}%".format(
+        med_sga_sale, med_capx_sale, neg_ebitda_base_pct))
     print("=" * 60)
 
     de_result = differential_evolution(
@@ -245,36 +216,29 @@ if __name__ == '__main__':
         seed=42,
         strategy="best1bin",
         maxiter=300,
-        popsize=5,          # 5 × 5 = 25 candidates per generation
+        popsize=5,
         tol=1e-4,
         mutation=(0.5, 1.0),
         recombination=0.7,
-        workers=-1,           # parallel workers
-        updating='deferred', # required for workers > 1
-        polish=False,        # we polish with least_squares below
+        workers=-1,
+        updating='deferred',
+        polish=False,
         disp=True,
     )
 
     print("\nDE result:  success={},  cost={:.6f}".format(de_result.success, de_result.fun))
-    print("  sigma={:.4f}  alpha_a={:.4f}  alpha_k={:.4f}  rho={:.4f}  sigma_eps={:.4f}".format(
-        de_result.x[0], de_result.x[1], de_result.x[2], de_result.x[3], de_result.x[4]))
+    print("  alpha_a={:.4f}  alpha_k={:.4f}  phi_1980={:.4f}".format(
+        de_result.x[0], de_result.x[1], de_result.x[2]))
 
     # -------------------------------------------------------------------------
-    # Re-seed warm starts from DE best point before LS refinement
+    # Re-seed warm start from DE best point before LS refinement
     # -------------------------------------------------------------------------
 
-    _sigma_de, _aa_de, _ak_de, _rho_de, _se_de = de_result.x
-    _z_grid_de, _, _Pi_de = discretize_productivity(_rho_de, _se_de, 10)
-    _phi0_de, _phiT_de = _phi_endpoints(_sigma_de)
-    print("\nRe-seeding warm starts from DE solution ...")
-    _pre_phi0 = _solve_eqm(_phi0_de, _sigma_de, _aa_de, _ak_de,
-                            _z_grid_de, _Pi_de, fixed_cost=0.0, max_nfev=1000)
-    _pre_phiT = _solve_eqm(_phiT_de, _sigma_de, _aa_de, _ak_de,
-                            _z_grid_de, _Pi_de, fixed_cost=0.0, max_nfev=1000)
-    if _pre_phi0 is not None:
-        _ws['phi0'] = np.array([_pre_phi0["c_agg"], _pre_phi0["W"], _pre_phi0["P_M"]])
-    if _pre_phiT is not None:
-        _ws['phiT'] = np.array([_pre_phiT["c_agg"], _pre_phiT["W"], _pre_phiT["P_M"]])
+    _aa_de, _ak_de, _phi0_de = de_result.x
+    print("\nRe-seeding warm start from DE solution ...")
+    _pre = _solve_eqm(_phi0_de, _aa_de, _ak_de, fixed_cost=0.0, max_nfev=1000)
+    if _pre is not None:
+        _ws_base['eqm'] = _pre
 
     # -------------------------------------------------------------------------
     # Phase 2: Least Squares — local refinement from DE best point
@@ -285,7 +249,7 @@ if __name__ == '__main__':
     print("=" * 60)
 
     result = least_squares(
-        lambda x: obj_joint(x, max_nfev=500),
+        lambda x: obj_base(x, max_nfev=500),
         x0=de_result.x,
         method="trf",
         bounds=(_BOUNDS_LOW, _BOUNDS_HIGH),
@@ -295,92 +259,101 @@ if __name__ == '__main__':
         verbose=2,
     )
 
-    sigma_cal     = float(result.x[0])
-    alpha_a_cal   = float(result.x[1])
-    alpha_k_cal   = float(result.x[2])
-    rho_cal       = float(result.x[3])
-    sigma_eps_cal = float(result.x[4])
-    phi0_cal, phiT_cal = _phi_endpoints(sigma_cal)
+    alpha_a_cal = float(result.x[0])
+    alpha_k_cal = float(result.x[1])
+    phi_1980    = float(result.x[2])
 
-    print("\nCalibration result:")
-    print("  success        = {}".format(result.success))
-    print("  message        = {}".format(result.message))
-    print("  sigma_cal      = {:.6f}".format(sigma_cal))
-    print("  alpha_a_cal    = {:.6f}".format(alpha_a_cal))
-    print("  alpha_k_cal    = {:.6f}".format(alpha_k_cal))
-    print("  rho_cal        = {:.6f}".format(rho_cal))
-    print("  sigma_eps_cal  = {:.6f}".format(sigma_eps_cal))
-    print("  z_k            = 1.0 (fixed)")
-    print("  fixed_cost     = 0.0 (fixed)")
-    print("  phi0           = {:.6f}".format(phi0_cal))
-    print("  phiT           = {:.6f}".format(phiT_cal))
-    print("  residuals      = {}".format(result.fun))
-    print("  cost           = {:.8f}".format(result.cost))
+    print("\nBase-period calibration result:")
+    print("  success      = {}".format(result.success))
+    print("  message      = {}".format(result.message))
+    print("  alpha_a_cal  = {:.6f}".format(alpha_a_cal))
+    print("  alpha_k_cal  = {:.6f}".format(alpha_k_cal))
+    print("  phi_1980     = {:.6f}".format(phi_1980))
+    print("  residuals    = {}".format(result.fun))
+    print("  cost         = {:.8f}".format(result.cost))
 
     # -------------------------------------------------------------------------
-    # Post-calibration diagnostics
+    # Post-calibration diagnostics (base period)
     # -------------------------------------------------------------------------
 
-    print("\nPost-calibration diagnostics:")
-
-    _z_grid_cal, _, _Pi_cal = discretize_productivity(rho_cal, sigma_eps_cal, 10)
-    eqm_phi0_cal = _solve_eqm(phi0_cal, sigma_cal, alpha_a_cal, alpha_k_cal,
-                               _z_grid_cal, _Pi_cal, fixed_cost=0.0)
-    eqm_phiT_cal = _solve_eqm(phiT_cal, sigma_cal, alpha_a_cal, alpha_k_cal,
-                               _z_grid_cal, _Pi_cal, fixed_cost=0.0)
-
-    pct_neg_phi0_cal = pct_negative(m_grid, k_grid, _z_grid_cal, eqm_phi0_cal)
-    pct_neg_phiT_cal = (pct_negative(m_grid, k_grid, _z_grid_cal, eqm_phiT_cal)
-                        if eqm_phiT_cal is not None else float('nan'))
-
-    def _sd_moments(eqm):
-        if eqm is None:
-            return float('nan'), float('nan')
-        _, ec = est_dist(m_grid, k_grid, _z_grid_cal, eqm, 'earnings')
-        _, sc = est_dist(m_grid, k_grid, _z_grid_cal, eqm, 'revenue')
-        return est_sd(ec), est_sd(sc)
-
-    sd_earn0_cal,  sd_sales0_cal  = _sd_moments(eqm_phi0_cal)
-    sd_earnT_cal,  sd_salesT_cal  = _sd_moments(eqm_phiT_cal)
-    log_chg_sd_earn_cal  = np.log(sd_earnT_cal)  - np.log(sd_earn0_cal)
-    log_chg_sd_sales_cal = np.log(sd_salesT_cal) - np.log(sd_sales0_cal)
-
-    er0_cal = mean_earnings(m_grid, k_grid, _z_grid_cal, eqm_phi0_cal) if eqm_phi0_cal is not None else float('nan')
-    erT_cal = mean_earnings(m_grid, k_grid, _z_grid_cal, eqm_phiT_cal) if eqm_phiT_cal is not None else float('nan')
-    log_chg_mean_earn_cal = (np.log(erT_cal) - np.log(er0_cal)
-                             if np.isfinite(er0_cal) and er0_cal > 0 and np.isfinite(erT_cal) and erT_cal > 0
-                             else float('nan'))
-
-    print("  pct_neg       @ phi0: data={:.2f}%,  model={:.2f}%".format(neg_ebitda_base_pct, pct_neg_phi0_cal))
-    print("  pct_neg       @ phiT: data={:.2f}%,  model={:.2f}%".format(neg_ebitda_final_pct, pct_neg_phiT_cal))
-    print("  log_chg_sd_earn:      data={:.4f},   model={:.4f}".format(log_change_sd_earnings, log_chg_sd_earn_cal))
-    print("  log_chg_sd_sales:     data={:.4f},   model={:.4f}".format(log_change_sd_sales, log_chg_sd_sales_cal))
-    print("  (diag) log_chg_mean_earn:  data={:.4f},   model={:.4f}".format(log_change_avg_ebitda, log_chg_mean_earn_cal))
-
-    # Grid boundary diagnostics
-    print("\n  Grid boundary mass (top 10% of grid = potential truncation):")
-    if eqm_phi0_cal is not None:
-        d0 = eqm_phi0_cal['Dist']
-        print("    phi0: m_bnd={:.4f}  k_bnd={:.4f}".format(
-            np.sum(d0[-10:, :, :]) / np.sum(d0),
-            np.sum(d0[:, -10:, :]) / np.sum(d0)))
-    if eqm_phiT_cal is not None:
-        dT = eqm_phiT_cal['Dist']
-        print("    phiT: m_bnd={:.4f}  k_bnd={:.4f}".format(
-            np.sum(dT[-10:, :, :]) / np.sum(dT),
-            np.sum(dT[:, -10:, :]) / np.sum(dT)))
-    print("  (If phiT boundary mass >> phi0 boundary mass, upper grid bound is likely binding)")
+    eqm_base = _solve_eqm(phi_1980, alpha_a_cal, alpha_k_cal, fixed_cost=0.0)
+    if eqm_base is not None:
+        adv_med_cal = median_adv_ratio(m_grid, k_grid, z_grid, eqm_base)
+        inv_med_cal = median_inv_ratio(m_grid, k_grid, z_grid, eqm_base)
+        pct_cal     = pct_negative(m_grid, k_grid, z_grid, eqm_base)
+        print("\nPost-calibration diagnostics (base period):")
+        print("  adv/rev:  data={:.4f},  model={:.4f}".format(med_sga_sale,        adv_med_cal))
+        print("  capx/rev: data={:.4f},  model={:.4f}".format(med_capx_sale,       inv_med_cal))
+        print("  pct_neg:  data={:.2f}%, model={:.2f}%".format(neg_ebitda_base_pct, pct_cal))
 
     # -------------------------------------------------------------------------
-    # Save calibrated parameters
+    # Save base calibration
     # -------------------------------------------------------------------------
 
-    out_arr = np.array([[alpha_a_cal, alpha_k_cal, sigma_cal, rho_cal, sigma_eps_cal]])
+    out_arr = np.array([[alpha_a_cal, alpha_k_cal, phi_1980]])
     np.savetxt(
         out_path,
         out_arr,
         delimiter=",",
-        header="alpha_a,alpha_k,sigma,rho,sigma_eps",
+        header="alpha_a,alpha_k,phi_1980",
         comments="",
     )
-    print("\nCalibrated parameters saved to {}".format(out_path))
+    print("\nBase calibration saved to {}".format(out_path))
+
+    # -------------------------------------------------------------------------
+    # Phi path inversion: find phi_t for each year to match pct_neg_t
+    # -------------------------------------------------------------------------
+
+    print("\n" + "=" * 60)
+    print("Phi path inversion: year-by-year brentq on pct_neg")
+    print("=" * 60)
+
+    # Bounds for phi search: allow wide range around phi_1980
+    phi_lo_global = _BOUNDS_LOW[2]
+    phi_hi_global = _BOUNDS_HIGH[2]
+
+    phi_path = []
+    last_eqm = eqm_base   # warm start carried across years
+    last_phi = phi_1980
+
+    for yr, pct_target in zip(years, pct_neg_data):
+        print("\nYear {}: target pct_neg = {:.4f}%".format(yr, pct_target))
+
+        _ws_inv = {'eqm': last_eqm}
+
+        def _pct_resid(phi_try):
+            warm = (np.array([_ws_inv['eqm']['c_agg'],
+                               _ws_inv['eqm']['W'],
+                               _ws_inv['eqm']['P_M']])
+                    if _ws_inv['eqm'] is not None else None)
+            eqm = _solve_eqm(phi_try, alpha_a_cal, alpha_k_cal,
+                             fixed_cost=0.0, warm_start=warm,
+                             max_nfev=500, vf_maxit=200)
+            if eqm is None:
+                return 1e3
+            _ws_inv['eqm'] = eqm
+            return pct_negative(m_grid, k_grid, z_grid, eqm) - pct_target
+
+        try:
+            phi_t = brentq(_pct_resid, phi_lo_global, phi_hi_global, xtol=1e-4, maxiter=50)
+            print("  phi_{} = {:.6f}".format(yr, phi_t))
+            # update warm start for next year
+            if _ws_inv['eqm'] is not None:
+                last_eqm = _ws_inv['eqm']
+            last_phi = phi_t
+        except ValueError as e:
+            print("  [WARN] brentq failed for year {}: {}  — using last phi = {:.4f}".format(
+                yr, e, last_phi))
+            phi_t = last_phi
+
+        phi_path.append((yr, phi_t))
+
+    # -------------------------------------------------------------------------
+    # Save phi path
+    # -------------------------------------------------------------------------
+
+    phi_df = pd.DataFrame(phi_path, columns=["year", "phi"])
+    phi_path_out = os.path.join(_DIR, "phi_path.csv")
+    phi_df.to_csv(phi_path_out, index=False)
+    print("\nPhi path saved to {}".format(phi_path_out))
+    print(phi_df.to_string(index=False))

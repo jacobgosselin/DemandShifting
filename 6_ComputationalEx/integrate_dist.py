@@ -102,7 +102,7 @@ def calc_value(m, k, z, m_prime, k_prime, eqm, value_type):
     L_a_i = L_a(adv, alpha_a, z_a)
     L_k_i = L_k(inv, alpha_k, z_k)
     L_s_i = L_s(c_val, z, k, gamma_k, gamma_l)
-    earnings = p_val*c_val - W * (L_s_i + L_k_i + L_a_i) - fixed_cost
+    earnings = p_val*c_val - W * (L_s_i + L_a_i) - fixed_cost
     revenue = p_val * c_val
     adv_ratio = (W*L_a_i) / revenue
     inv_ratio = (W*L_k_i) / revenue

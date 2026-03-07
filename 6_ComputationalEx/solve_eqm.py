@@ -133,6 +133,8 @@ def solve_ss_equilibrium_least_squares(m_grid, k_grid, z_grid, Pi,
                        p.gamma_k, p.gamma_l, p.alpha_k, p.z_k, p.alpha_a, p.z_a, p.phi,
                        maxit=250, tol=1e-6, verbose=False,
                        invest_m=p.invest_m, invest_k=p.invest_k)
+    if not pol["vf_converged"]:
+        print("Warning: VF EGM did not converge (final solve). sup-norm diff = {:.3e}".format(pol["vf_diff"]))
     Dist = stationary_distribution(pol["m_policy"], pol["k_policy"], Pi, m_grid, k_grid, p.entry_perc,
                                    invest_m = p.invest_m, invest_k = p.invest_k)
     consumption, agg_labor, agg_cust, agg_adv = aggregate_vals(

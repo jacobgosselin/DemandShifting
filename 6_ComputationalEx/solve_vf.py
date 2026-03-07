@@ -251,10 +251,6 @@ def solve_vf_egm(m_grid, k_grid, z_grid, Pi, c_agg, W, P_M, beta, entry_perc,
                 print("Converged after {} iterations with sup-norm diff = {:.3e}".format(it, diff))
             break
 
-    if it == maxit - 1:
-        print("Warning: VF EGM did not converge after {} iterations".format(maxit))
-        # print diff
-        print("Final sup-norm diff = {:.3e}".format(diff))
-        # raise RuntimeError("VF EGM did not converge after {} iterations".format(maxit))
-
-    return {"Vm": Vm, "Vk": Vk, "m_policy": m_pol, "k_policy": k_pol}
+    converged = (diff < tol)
+    return {"Vm": Vm, "Vk": Vk, "m_policy": m_pol, "k_policy": k_pol,
+            "vf_converged": converged, "vf_diff": diff}

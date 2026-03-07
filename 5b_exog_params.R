@@ -82,9 +82,9 @@ log_change_sd_earnings       <- log(sd(final_year$ebitda,   na.rm = TRUE)) -
 log_change_sd_sales          <- log(sd(final_year$sale,     na.rm = TRUE)) -
                                 log(sd(base_year$sale,      na.rm = TRUE))
 
-struct_data$med_sga_sale            <- sga_sale_median
+struct_data$med_sga_sale            <- 0.236 * sga_sale_median # From He et. al.
 struct_data$med_capx_sale           <- capx_sale_median
-struct_data$med_sales_negebitda     <- sga_sale_negebitda_median
+struct_data$med_sales_negebitda     <- 0.236 * sga_sale_negebitda_median # From He et. al.
 struct_data$med_capx_sale_negebitda <- capx_sale_negebitda_median
 struct_data$neg_ebitda_base         <- neg_ebitda_base
 struct_data$neg_ebitda_final        <- neg_ebitda_final
@@ -104,9 +104,4 @@ write.csv(pct_neg_byyear,
           row.names = FALSE)
 
 cat("5b_exog_params.R complete.\n")
-cat("rho:", struct_data$rho, "  sigma_xi:", struct_data$sigma_xi, "\n")
-cat("gamma_l:", struct_data$gamma_l, "  gamma_k:", struct_data$gamma_k, "\n")
-cat("sigma:", sigma_val, "\n")
-cat("exit_rate:", exit_rate, "  entry_rate:", entry_rate, "\n")
-cat("neg_ebitda_base:", neg_ebitda_base, "  neg_ebitda_final:", neg_ebitda_final, "\n")
-cat("med_sga_sale:", sga_sale_median, "  med_capx_sale:", capx_sale_median, "\n")
+print(struct_data)

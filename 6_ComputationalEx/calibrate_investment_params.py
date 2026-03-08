@@ -87,6 +87,7 @@ out_path = os.path.join(_DIR, "calibrated_investment_params.csv")
 alpha_a_init = 0.5
 alpha_k_init = 0.5
 phi_init     = phi_from_coef(coef_1980, sigma_fixed)  # default: back out from coef
+sigma_init   = sigma_fixed                             # default: from structural_parameters
 
 if os.path.isfile(out_path):
     _cal_prev = pd.read_csv(out_path)
@@ -96,13 +97,17 @@ if os.path.isfile(out_path):
         alpha_k_init = float(_cal_prev["alpha_k"].iloc[0])
     if "phi" in _cal_prev.columns:
         phi_init = float(_cal_prev["phi"].iloc[0])
+    if "sigma" in _cal_prev.columns:
+        sigma_init = float(_cal_prev["sigma"].iloc[0])
     print("\nLoaded initial guesses from {}:".format(out_path))
     print("  alpha_a_init = {:.6f}".format(alpha_a_init))
     print("  alpha_k_init = {:.6f}".format(alpha_k_init))
     print("  phi_init     = {:.6f}".format(phi_init))
+    print("  sigma_init   = {:.6f}".format(sigma_init))
 else:
     print("\nNo existing calibrated parameters found; using defaults.")
-    print("  phi_init (from coef_1980) = {:.6f}".format(phi_init))
+    print("  phi_init   (from coef_1980)  = {:.6f}".format(phi_init))
+    print("  sigma_init (from struct_params) = {:.6f}".format(sigma_init))
 
 # -----------------------------------------------------------------------------
 # Helper: solve equilibrium with convergence check
@@ -152,21 +157,22 @@ def _solve_eqm(phi_val, alpha_a, alpha_k, sigma_val,
 #     pct_neg           =  neg_ebitda_base_pct
 # -----------------------------------------------------------------------------
 
-_BOUNDS_LOW  = [0.1, 0.1, -0.5]   # alpha_a, alpha_k, phi
-_BOUNDS_HIGH = [0.9, 0.9,  0.5]   # alpha_a, alpha_k, phi
+_BOUNDS_LOW  = [0.1, 0.1, -0.5, 1.5]    # alpha_a, alpha_k, phi, sigma
+_BOUNDS_HIGH = [0.9, 0.9,  0.5, 10.0]   # alpha_a, alpha_k, phi, sigma
 
 def obj_base(x, max_nfev=30, vf_maxit=200):
-    alpha_a_try, alpha_k_try, phi_try = (
-        float(x[0]), float(x[1]), float(x[2])
+    alpha_a_try, alpha_k_try, phi_try, sigma_try = (
+        float(x[0]), float(x[1]), float(x[2]), float(x[3])
     )
 
     # bounds check (needed for unconstrained solvers like Nelder-Mead)
     if not (_BOUNDS_LOW[0] <= alpha_a_try <= _BOUNDS_HIGH[0] and
             _BOUNDS_LOW[1] <= alpha_k_try <= _BOUNDS_HIGH[1] and
-            _BOUNDS_LOW[2] <= phi_try     <= _BOUNDS_HIGH[2]):
+            _BOUNDS_LOW[2] <= phi_try     <= _BOUNDS_HIGH[2] and
+            _BOUNDS_LOW[3] <= sigma_try   <= _BOUNDS_HIGH[3]):
         return np.full(3, 1e3)
 
-    eqm = _solve_eqm(phi_try, alpha_a_try, alpha_k_try, sigma_fixed,
+    eqm = _solve_eqm(phi_try, alpha_a_try, alpha_k_try, sigma_try,
                      fixed_cost=0.0, max_nfev=max_nfev, vf_maxit=vf_maxit)
     if eqm is None:
         return np.full(3, 1e3)
@@ -184,10 +190,10 @@ def obj_base(x, max_nfev=30, vf_maxit=200):
         return np.full(3, 1e3)
 
     print(
-        "aa={:.4f} ak={:.4f} phi={:.4f} | "
+        "aa={:.4f} ak={:.4f} phi={:.4f} sigma={:.4f} | "
         "adv={:.4f} inv={:.4f} pct={:.2f}% | "
         "||res||={:.6f}".format(
-            alpha_a_try, alpha_k_try, phi_try,
+            alpha_a_try, alpha_k_try, phi_try, sigma_try,
             adv_med, inv_med, pct,
             np.linalg.norm(res))
     )
@@ -203,10 +209,10 @@ if __name__ == '__main__':
     # -------------------------------------------------------------------------
 
     print("\n" + "=" * 60)
-    print("Phase 1: Solve for alpha_a, alpha_k, phi  (sigma fixed = mu/(mu-1))")
+    print("Phase 1: Solve for alpha_a, alpha_k, phi, sigma  (4 params, 3 moments)")
     print("  Targets: adv/rev={:.4f}  capx/rev={:.4f}  pct_neg@1980={:.2f}%".format(
         med_sga_sale, med_capx_sale, neg_ebitda_base_pct))
-    print("  sigma_fixed = {:.6f}".format(sigma_fixed))
+    print("  sigma_fixed (reference, not imposed) = {:.6f}".format(sigma_fixed))
     print("=" * 60)
 
     def obj_base_scalar(x):
@@ -257,6 +263,7 @@ if __name__ == '__main__':
     alpha_a_cal = float(result.x[0])
     alpha_k_cal = float(result.x[1])
     phi_cal     = float(result.x[2])
+    sigma_cal   = float(result.x[3])
 
     print("\nBase-period calibration result:")
     print("  success      = {}".format(result.success))
@@ -264,7 +271,8 @@ if __name__ == '__main__':
     print("  alpha_a_cal  = {:.6f}".format(alpha_a_cal))
     print("  alpha_k_cal  = {:.6f}".format(alpha_k_cal))
     print("  phi_cal      = {:.6f}".format(phi_cal))
-    print("  sigma_fixed  = {:.6f}  (not calibrated)".format(sigma_fixed))
+    print("  sigma_cal    = {:.6f}  (calibrated)".format(sigma_cal))
+    print("  sigma_fixed  = {:.6f}  (reference from ACF)".format(sigma_fixed))
     print("  residuals    = {}".format(result.fun))
     print("  cost         = {:.8f}".format(result.cost if hasattr(result, 'cost') else result.fun))
 
@@ -272,7 +280,7 @@ if __name__ == '__main__':
     # Post-calibration diagnostics (base period)
     # -------------------------------------------------------------------------
 
-    eqm_base = _solve_eqm(phi_cal, alpha_a_cal, alpha_k_cal, sigma_fixed, fixed_cost=0.0)
+    eqm_base = _solve_eqm(phi_cal, alpha_a_cal, alpha_k_cal, sigma_cal, fixed_cost=0.0)
     if eqm_base is not None:
         adv_med_cal = median_adv_ratio(m_grid, k_grid, z_grid, eqm_base)
         inv_med_cal = median_inv_ratio(m_grid, k_grid, z_grid, eqm_base)
@@ -287,8 +295,8 @@ if __name__ == '__main__':
     # -------------------------------------------------------------------------
 
     print("\n--- Partial effect diagnostics at calibrated optimum ---")
-    x_opt = np.array([alpha_a_cal, alpha_k_cal, phi_cal])
-    param_names = ["alpha_a", "alpha_k", "phi"]
+    x_opt = np.array([alpha_a_cal, alpha_k_cal, phi_cal, sigma_cal])
+    param_names = ["alpha_a", "alpha_k", "phi", "sigma"]
     for idx, pname in enumerate(param_names):
         lo, hi = _BOUNDS_LOW[idx], _BOUNDS_HIGH[idx]
         print("\n  Sweep {} (others fixed at optimum):".format(pname))
@@ -301,12 +309,12 @@ if __name__ == '__main__':
     # Save base calibration
     # -------------------------------------------------------------------------
 
-    out_arr = np.array([[alpha_a_cal, alpha_k_cal, phi_cal]])
+    out_arr = np.array([[alpha_a_cal, alpha_k_cal, phi_cal, sigma_cal]])
     np.savetxt(
         out_path,
         out_arr,
         delimiter=",",
-        header="alpha_a,alpha_k,phi",
+        header="alpha_a,alpha_k,phi,sigma",
         comments="",
     )
     print("\nBase calibration saved to {}".format(out_path))
@@ -330,7 +338,7 @@ if __name__ == '__main__':
         print("\nYear {}: target pct_neg = {:.4f}%".format(yr, pct_target))
 
         def _pct_resid(phi_try):
-            eqm = _solve_eqm(phi_try, alpha_a_cal, alpha_k_cal, sigma_fixed,
+            eqm = _solve_eqm(phi_try, alpha_a_cal, alpha_k_cal, sigma_cal,
                              fixed_cost=0.0, max_nfev=500, vf_maxit=200)
             if eqm is None:
                 return 1e3

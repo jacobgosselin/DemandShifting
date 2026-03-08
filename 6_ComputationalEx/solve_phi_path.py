@@ -72,7 +72,8 @@ if os.path.exists(calib_path) & load_calib:
     alpha_a_cal = float(calib_df["alpha_a"].iloc[0])
     alpha_k_cal = float(calib_df["alpha_k"].iloc[0])
     phi_cal     = float(calib_df["phi"].iloc[0])
-    rho_cal        = float(calib_df["rho"].iloc[0])   if "rho"       in calib_df.columns else struct_params["rho"].iloc[0]
+    sigma_cal      = float(calib_df["sigma"].iloc[0])     if "sigma"     in calib_df.columns else struct_params["sigma"].iloc[0]
+    rho_cal        = float(calib_df["rho"].iloc[0])       if "rho"       in calib_df.columns else struct_params["rho"].iloc[0]
     sigma_eps_cal  = float(calib_df["sigma_eps"].iloc[0]) if "sigma_eps" in calib_df.columns else struct_params["sigma_xi"].iloc[0]
     fixed_cost_cal = 0.0
 else:

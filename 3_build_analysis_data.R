@@ -66,7 +66,7 @@ analysis_data <- analysis_data %>%
     m_inv = sga / sum(sga, na.rm = TRUE)
   ) %>%
   group_by(gvkey) %>%
-  arrange(gvkey, date) 
+  arrange(gvkey, date)
 
 # Step 2: Pre-IPO growth rate of m_inv ------------------------------------
 

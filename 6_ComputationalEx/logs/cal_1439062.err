@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/gpfs/projects/p32386/Demand_Shifting/calibrate_investment_params.py", line 234, in <module>
+    alpha_a_cal = float(result.x[0])
+                        ^^^^^^
+NameError: name 'result' is not defined

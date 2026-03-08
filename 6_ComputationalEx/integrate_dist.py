@@ -239,3 +239,193 @@ def mean_earnings(m_grid, k_grid, z_grid, eqm):
     earn_pdf, _ = est_dist(m_grid, k_grid, z_grid, eqm, 'earnings')
     total_mass = np.sum(earn_pdf[:, 1])
     return np.sum(earn_pdf[:, 0] * earn_pdf[:, 1]) / total_mass
+
+def agg_capital_stock(m_grid, k_grid, z_grid, eqm):
+    """Aggregate physical capital stock = distribution-weighted sum of k."""
+    Dist = eqm['Dist']
+    k_grid = eqm.get('k_grid', k_grid)
+    return float(np.einsum('ijk,j->', Dist, k_grid))
+
+def sales_wtd_productivity(m_grid, k_grid, z_grid, eqm):
+    """Sales-weighted average TFP: sum(z * revenue * mass) / sum(revenue * mass)."""
+    Dist = eqm['Dist']
+    m_grid = eqm.get('m_grid', m_grid)
+    k_grid = eqm.get('k_grid', k_grid)
+    policies = eqm['policies']
+    m_pol = policies.get('m_policy', None)
+    k_pol = policies.get('k_policy', None)
+    Nm, Nk, Nz = len(m_grid), len(k_grid), len(z_grid)
+    num, den = 0.0, 0.0
+    for im in range(Nm):
+        for ik in range(Nk):
+            for iz in range(Nz):
+                mass = Dist[im, ik, iz]
+                if mass <= 0.0:
+                    continue
+                m_val, k_val, z_val = m_grid[im], k_grid[ik], z_grid[iz]
+                m_prime = m_pol[im, ik, iz] if m_pol is not None else m_val
+                k_prime = k_pol[im, ik, iz] if k_pol is not None else k_val
+                rev = calc_value(m_val, k_val, z_val, m_prime, k_prime, eqm, 'revenue')
+                num += z_val * rev * mass
+                den += rev * mass
+    return num / den if den > 0 else np.nan
+
+def avg_firm_earnings_path(eqm, z_grid, T=10):
+    """
+    Simulate earnings path for a firm fixed at median productivity.
+
+    The firm enters at (m_grid[0], k_grid[0]) and follows equilibrium policy
+    functions for T periods with z held fixed at the median z_grid state.
+    Policy values at off-grid (m, k) are bilinearly interpolated via get_lottery.
+
+    Parameters
+    ----------
+    eqm    : dict   Equilibrium object (same structure used by est_dist).
+    z_grid : array  Productivity grid.
+    T      : int    Number of periods to simulate (default 10).
+
+    Returns
+    -------
+    earnings : np.ndarray, shape (T,)
+    """
+    m_grid = eqm.get('m_grid')
+    k_grid = eqm.get('k_grid')
+    m_pol  = eqm['policies']['m_policy']
+    k_pol  = eqm['policies']['k_policy']
+
+    iz_med = len(z_grid) // 2
+    z_med  = z_grid[iz_med]
+
+    m = m_grid[0]
+    k = k_grid[0]
+
+    earnings = np.zeros(T)
+    for t in range(T):
+        mi_l, wm_l, mi_r, wm_r = get_lottery(m, m_grid)
+        ki_l, wk_l, ki_r, wk_r = get_lottery(k, k_grid)
+
+        m_prime = (m_pol[mi_l, ki_l, iz_med] * wm_l * wk_l +
+                   m_pol[mi_l, ki_r, iz_med] * wm_l * wk_r +
+                   m_pol[mi_r, ki_l, iz_med] * wm_r * wk_l +
+                   m_pol[mi_r, ki_r, iz_med] * wm_r * wk_r)
+
+        k_prime = (k_pol[mi_l, ki_l, iz_med] * wm_l * wk_l +
+                   k_pol[mi_l, ki_r, iz_med] * wm_l * wk_r +
+                   k_pol[mi_r, ki_l, iz_med] * wm_r * wk_l +
+                   k_pol[mi_r, ki_r, iz_med] * wm_r * wk_r)
+
+        earnings[t] = calc_value(m, k, z_med, m_prime, k_prime, eqm, 'earnings')
+        m = m_prime
+        k = k_prime
+
+    return earnings
+
+
+def cohort_neg_path(eqm, z_grid, Pi, T=50):
+    """
+    Evolve a cohort of entrants forward T periods and return the fraction
+    earning < 0 at each period.
+
+    Entrants start at (m_grid[0], k_grid[0]) with z drawn from the stationary
+    z distribution. Productivity follows Pi each period; no exit/re-entry.
+
+    Parameters
+    ----------
+    eqm    : dict            Equilibrium object.
+    z_grid : array (Nz,)    Productivity grid.
+    Pi     : array (Nz, Nz) Markov transition matrix for z.
+    T      : int             Number of periods to simulate (default 50).
+
+    Returns
+    -------
+    pct_neg : np.ndarray, shape (T,)
+        Percent of cohort with negative earnings in each period (0-100).
+    """
+    m_grid = eqm.get('m_grid')
+    k_grid = eqm.get('k_grid')
+    m_pol  = eqm['policies']['m_policy']
+    k_pol  = eqm['policies']['k_policy']
+
+    pi_z = stationary_markov(Pi)
+    Nm, Nk, Nz = len(m_grid), len(k_grid), len(z_grid)
+    Dist = np.zeros((Nm, Nk, Nz))
+    Dist[0, 0, :] = pi_z
+
+    pct_neg = np.zeros(T)
+    for t in range(T):
+        neg_mass = 0.0
+        total_mass = 0.0
+        for im in range(Nm):
+            for ik in range(Nk):
+                for iz in range(Nz):
+                    mass = Dist[im, ik, iz]
+                    if mass <= 0.0:
+                        continue
+                    m_prime = m_pol[im, ik, iz]
+                    k_prime = k_pol[im, ik, iz]
+                    earn = calc_value(m_grid[im], k_grid[ik], z_grid[iz],
+                                      m_prime, k_prime, eqm, 'earnings')
+                    total_mass += mass
+                    if earn < 0:
+                        neg_mass += mass
+        pct_neg[t] = 100.0 * neg_mass / total_mass if total_mass > 0 else 0.0
+        Dist = forward_step(Dist, m_pol, k_pol, Pi, m_grid, k_grid)
+
+    return pct_neg
+
+
+def avg_neg_periods(eqm, z_grid, Pi, T=50):
+    """Expected number of periods an entrant earns < 0 in the first T periods."""
+    return np.sum(cohort_neg_path(eqm, z_grid, Pi, T)) / 100.0
+
+
+def agg_labor_shares(m_grid, k_grid, z_grid, eqm):
+    """
+    Aggregate labor allocations: (L_a, L_k, L_s).
+    By labor market clearing these must sum to 1 — asserted as a bug check.
+    """
+    Dist = eqm['Dist']
+    policies = eqm['policies']
+    m_grid = eqm.get('m_grid', m_grid)
+    k_grid = eqm.get('k_grid', k_grid)
+
+    c_agg   = eqm['c_agg']
+    W       = eqm['W']
+    P_M     = eqm['P_M']
+    sigma   = eqm['params']['sigma']
+    gamma_k = eqm['params']['gamma_k']
+    gamma_l = eqm['params']['gamma_l']
+    alpha_k = eqm['params']['alpha_k']
+    z_k     = eqm['params']['z_k']
+    alpha_a = eqm['params']['alpha_a']
+    z_a     = eqm['params']['z_a']
+    delta_m = eqm['params']['delta_m']
+    delta_k = eqm['params']['delta_k']
+    phi     = eqm['params']['phi']
+
+    m_pol = policies.get('m_policy', None)
+    k_pol = policies.get('k_policy', None)
+    Nm, Nk, Nz = len(m_grid), len(k_grid), len(z_grid)
+
+    La_total = Lk_total = Ls_total = 0.0
+    for im in range(Nm):
+        for ik in range(Nk):
+            for iz in range(Nz):
+                mass = Dist[im, ik, iz]
+                if mass <= 0.0:
+                    continue
+                m_val = m_grid[im]; k_val = k_grid[ik]; z_val = z_grid[iz]
+                m_prime = m_pol[im, ik, iz] if m_pol is not None else m_val
+                k_prime = k_pol[im, ik, iz] if k_pol is not None else k_val
+
+                c_val = c_i_star(m_val, k_val, z_val, c_agg, sigma, W, gamma_k, gamma_l, phi)
+                adv   = (m_prime - (1.0 - delta_m) * m_val) * P_M
+                inv   = k_prime - (1.0 - delta_k) * k_val
+
+                La_total += L_a(adv,   alpha_a, z_a) * mass
+                Lk_total += L_k(inv,   alpha_k, z_k) * mass
+                Ls_total += L_s(c_val, z_val, k_val, gamma_k, gamma_l) * mass
+
+    total = La_total + Lk_total + Ls_total
+    assert abs(total - 1.0) < 1e-4, f"Labor market clearing violated: L_a+L_k+L_s = {total:.6f}"
+    return La_total, Lk_total, Ls_total

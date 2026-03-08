@@ -22,7 +22,7 @@ from ProdFun_VPublic import ProdFun
 
 #%% Options for estimation
 
-## set which variables to include in the production function 
+## set which variables to include in the production function
 vars_how = OrderedDict() # ordered dictionary, coefficients ordered as the insertion order
 vars_how['v'] = ['purge','static','variable'] # variable input, markup will be computed for this
 vars_how['k'] = ['purge','dynamic','fixed'] # capital
@@ -31,7 +31,7 @@ vars_how['k'] = ['purge','dynamic','fixed'] # capital
 #vars_how['x'] = ['purge','dynamic','fixed'] # fixed cost
 
 # to add variable p as a control in the first stage
-#vars_how['p'] = ['purge','no input','no input'] # additional control in first stage 
+#vars_how['p'] = ['purge','no input','no input'] # additional control in first stage
 
 
 #%% Import data
@@ -61,16 +61,16 @@ ind_list = ind_list[np.logical_not(np.isnan(ind_list))]
 
 # estimate the model
 for ind in ind_list:
-    
+
     print('')
     print('Industry ' + str(ind) + ' / ' + str(ind_list[-1]))
-    
+
     # keep one industry
     dta_iter = dta_deep.loc[dta_deep['sector'] == ind]
 
     # select time window
     dta_iter = dta_iter[(dta_iter.date > 1959) & (dta_iter.date < 2024)]
-    
+
     # estimate the model
     P = ProdFun(dta_iter, vars_how, translog=False)
 
@@ -82,14 +82,14 @@ for ind in ind_list:
         if vars_how[key][1] != 'no input':
             #cols.append('beta_' + key)
             cols += ['beta_' + key]
-                               
-    beta_iter = pd.DataFrame([P.betas], columns = cols) 
+
+    beta_iter = pd.DataFrame([P.betas], columns = cols)
 
     # add information to the stored betas
     beta_iter['sector'] = ind
     beta_iter['N_obs'] = dta_iter.shape[0]
     beta_iter['N_firms'] = dta_iter.firmid.unique().shape[0]
-            
+
     # store AR(1) parameters for productivity
     ar1_iter = pd.DataFrame([{'sector': ind, 'rho': P.rho, 'sigma_xi': P.sigma_xi}])
 
@@ -105,8 +105,8 @@ for ind in ind_list:
 dta_betas = dta_betas.sort_values(by=['sector'])
 
 print('')
-print('Resulting Betas:')    
-print(dta_betas)    
+print('Resulting Betas:')
+print(dta_betas)
 
 t2 = time()
 
@@ -117,7 +117,7 @@ print('Cleaning time: ' + str(np.round(t1-t0,2)) + ' sec.')
 print('Fitting time: ' + str(np.round(t2-t1,2)) + ' sec.')
 print('')
 print('')
-        
+
 
 #%% create dataset to export
 
@@ -128,11 +128,11 @@ print('Exporting..')
 dta_export=pd.read_csv('data/intermediate/compustat_preMU.csv', parse_dates=[0])
 # set date to integer, not datetime
 # dta_export['date'] = dta_export['date'].dt.year
-                
+
 # add markups
 dta_merge01 = dta_mu[['firmid','date','mu_v']]
 dta_export = dta_export.merge(dta_merge01
-                            , on=['firmid','date'], how = 'left')      
+                            , on=['firmid','date'], how = 'left')
 
 dta_export = dta_export.sort_values(by=['sector','firmid','date']) # sorting
 dta_check = dta_export.head(100) # to check the data

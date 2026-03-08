@@ -27,12 +27,18 @@ struct_data <- acf_data %>%
   )
 
 # Exogenous exit rate ----
-exit_data <- analysis_data %>%
+
+load("data/raw/compustat_raw.RData")
+sample_firms <- analysis_data %>% select(gvkey) %>% distinct() 
+exit_data <- compustat %>%
+  filter(gvkey %in% sample_firms$gvkey) %>%
   group_by(gvkey) %>%
-  arrange(date) %>%
+  arrange(gvkey, fyear) %>%
   mutate(
-    exit = ifelse(is.na(lead(sale)), 1, 0)
+    date = fyear,
+    exit = ifelse(is.na(lead(gvkey)), 1, 0)
   ) %>%
+  select(exit, date) %>%
   ungroup()
 
 exit_rate_byyear <- exit_data %>%
@@ -42,23 +48,6 @@ exit_rate_byyear <- exit_data %>%
 
 exit_rate <- mean(exit_rate_byyear$exit_rate, na.rm = TRUE)
 struct_data$exit_rate <- exit_rate
-
-# Entry rate ----
-entry_data <- analysis_data %>%
-  group_by(gvkey) %>%
-  arrange(date) %>%
-  mutate(
-    entry = ifelse(is.na(lag(sale)), 1, 0)
-  ) %>%
-  ungroup()
-
-entry_rate_byyear <- entry_data %>%
-  group_by(date) %>%
-  summarise(entry_rate = mean(entry, na.rm = TRUE)) %>%
-  filter(date > 1980)
-
-entry_rate <- mean(entry_rate_byyear$entry_rate, na.rm = TRUE)
-struct_data$entry_rate <- entry_rate
 
 # Sigma from markups: sigma = mu / (mu - 1) ----
 sigma_vals <- analysis_data$mu / (analysis_data$mu - 1)

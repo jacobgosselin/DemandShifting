@@ -46,21 +46,24 @@ k_grid = discretize_choices(1e-3, 10, 100, type = "exp")
 # Create solved_eqm directory if it doesn't exist
 os.makedirs(SOLVED_EQM_DIR, exist_ok=True)
 
-# Load calibrated params (alpha_a, alpha_k, sigma, z_k, fixed_cost) produced by calibrate_investment_params.py
+# sigma is fixed = mu/(mu-1) from ACF markup (not calibrated)
+sigma_cal = struct_params["sigma"].iloc[0]
+
+# Load calibrated params (alpha_a, alpha_k, phi) produced by calibrate_investment_params.py
 calib_path = os.path.join(os.path.dirname(__file__), "calibrated_investment_params.csv")
 use_calib_values = True
 if os.path.exists(calib_path) & use_calib_values:
     calib_vals = np.loadtxt(calib_path, delimiter=",", skiprows=1)
     calib_vals = np.atleast_1d(calib_vals)
-    alpha_a_cal, alpha_k_cal, sigma_cal = (
+    alpha_a_cal, alpha_k_cal, phi_cal = (
         calib_vals[0], calib_vals[1], calib_vals[2]
     )
     z_k_cal        = float(calib_vals[3]) if len(calib_vals) > 3 else 1.0
     fixed_cost_cal = float(calib_vals[4]) if len(calib_vals) > 4 else 0.0
     print(
         f"Loaded calibrated params: alpha_a={alpha_a_cal:.4f}, "
-        f"alpha_k={alpha_k_cal:.4f}, sigma={sigma_cal:.4f}, "
-        f"z_k={z_k_cal:.4f}, fixed_cost={fixed_cost_cal:.4f}"
+        f"alpha_k={alpha_k_cal:.4f}, phi={phi_cal:.4f}, "
+        f"sigma={sigma_cal:.4f} (fixed), z_k={z_k_cal:.4f}, fixed_cost={fixed_cost_cal:.4f}"
     )
 else:
     print(

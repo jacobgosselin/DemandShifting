@@ -22,6 +22,8 @@ from integrate_dist import (
     pct_negative, est_dist, est_sd,
     median_adv_ratio, median_inv_ratio, median_cogs_ratio,
     median_earnings, mean_earnings,
+    agg_capital_stock, sales_wtd_productivity, agg_labor_shares,
+    avg_firm_earnings_path, cohort_neg_path,
 )
 
 # -----------------------------------------------------------------------------
@@ -56,6 +58,7 @@ years      = data["years"]        # sorted list of int years
 m_grid     = data["grids"]["m_grid"]
 k_grid     = data["grids"]["k_grid"]
 z_grid     = data["grids"]["z_grid"]
+Pi         = data["grids"]["Pi"]
 
 print(f"Loaded {len(eqms)} equilibria for years {years[0]}–{years[-1]}.\n")
 
@@ -71,6 +74,9 @@ med_earn_vals, mean_earn_vals = [], []
 c_vals        = []
 m_bnd_vals    = []
 k_bnd_vals    = []
+agg_k_vals    = []
+sales_wtd_z_vals = []
+La_vals, Lk_vals, Ls_vals = [], [], []
 
 for yr in years:
     eqm  = eqms[yr]
@@ -97,6 +103,10 @@ for yr in years:
     mean_earn_vals.append(mean_earnings(m_grid, k_grid, z_grid, eqm))
 
     c_vals.append(eqm["c_agg"])
+    agg_k_vals.append(agg_capital_stock(m_grid, k_grid, z_grid, eqm))
+    sales_wtd_z_vals.append(sales_wtd_productivity(m_grid, k_grid, z_grid, eqm))
+    La, Lk, Ls = agg_labor_shares(m_grid, k_grid, z_grid, eqm)
+    La_vals.append(La); Lk_vals.append(Lk); Ls_vals.append(Ls)
     print(
         f"  {yr}: pct_neg={pct_neg_vals[-1]:.2f}%  "
         f"m_bnd={m_bnd_vals[-1]:.4f}  k_bnd={k_bnd_vals[-1]:.4f}"
@@ -191,5 +201,75 @@ plt.legend(fontsize=16)
 plt.tick_params(axis="both", which="major", labelsize=16)
 plt.grid(True, alpha=0.3)
 _save("earnings_median_mean_vs_phi_arb_scale.pdf")
+
+# Figure 8: Aggregate capital stock
+plt.figure(figsize=(10, 10))
+plt.plot(years, agg_k_vals, "o-", linewidth=3, markersize=10)
+plt.xlabel("Year", fontsize=18)
+plt.ylabel("Aggregate Capital Stock", fontsize=18)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+_save("agg_capital_stock_vs_phi_arb_scale.pdf")
+
+# Figure 9: Sales-weighted productivity
+plt.figure(figsize=(10, 10))
+plt.plot(years, sales_wtd_z_vals, "o-", linewidth=3, markersize=10)
+plt.xlabel("Year", fontsize=18)
+plt.ylabel("Sales-Weighted Productivity", fontsize=18)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+_save("sales_wtd_productivity_vs_phi_arb_scale.pdf")
+
+# Figure 10: Aggregate labor allocations
+plt.figure(figsize=(10, 10))
+plt.plot(years, La_vals, "o-", linewidth=3, markersize=10, label=r"$L_a$ (advertising)")
+plt.plot(years, Lk_vals, "s-", linewidth=3, markersize=10, label=r"$L_k$ (capital inv.)")
+plt.plot(years, Ls_vals, "^-", linewidth=3, markersize=10, label=r"$L_s$ (goods prod.)")
+plt.xlabel("Year", fontsize=18)
+plt.ylabel("Aggregate Labor Allocation", fontsize=18)
+plt.legend(fontsize=16)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+_save("agg_labor_shares_vs_phi_arb_scale.pdf")
+# Print La, Lk, Ls values for reference
+print("\nAggregate labor allocations by year:")
+for yr, La, Lk, Ls in zip(years, La_vals, Lk_vals, Ls_vals):
+    print(f"  {yr}: La={La:.4f}, Lk={Lk:.4f}, Ls={Ls:.4f}")
+
+# Figure 11: Average firm earnings path — phi_0 vs phi_T
+eqm_phi0 = eqms[years[0]]
+eqm_phiT = eqms[years[-1]]
+path_phi0 = avg_firm_earnings_path(eqm_phi0, z_grid, T=50)
+path_phiT = avg_firm_earnings_path(eqm_phiT, z_grid, T=50)
+periods = np.arange(1, 51)
+plt.figure(figsize=(10, 10))
+plt.plot(periods, path_phi0, "o-", linewidth=3, markersize=10, label=f"{years[0]} ($\\phi_0$)")
+plt.plot(periods, path_phiT, "s-", linewidth=3, markersize=10, label=f"{years[-1]} ($\\phi_T$)")
+plt.axhline(0, color="black", linewidth=1, linestyle="--")
+plt.xlabel("Period", fontsize=18)
+plt.ylabel("Earnings (Median Productivity Entrant)", fontsize=18)
+plt.legend(fontsize=16)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+_save("avg_firm_earnings_path_phi0_vs_phiT.pdf")
+
+# Figure 12: Cohort pct negative earnings by period — phi_0 vs phi_T
+print("\nComputing cohort earnings paths (this may take ~15 sec)...")
+cneg_phi0 = cohort_neg_path(eqm_phi0, z_grid, Pi, T=5)
+cneg_phiT = cohort_neg_path(eqm_phiT, z_grid, Pi, T=5)
+periods = np.arange(1, 6)
+print(f"  Expected neg-earnings periods (phi_0): {np.sum(cneg_phi0)/100:.2f}")
+print(f"  Expected neg-earnings periods (phi_T): {np.sum(cneg_phiT)/100:.2f}")
+plt.figure(figsize=(10, 10))
+plt.plot(periods, cneg_phi0, "o-", linewidth=3, markersize=10, label=f"{years[0]} ($\\phi_0$)")
+plt.plot(periods, cneg_phiT, "s-", linewidth=3, markersize=10, label=f"{years[-1]} ($\\phi_T$)")
+plt.xlabel("Period", fontsize=18)
+plt.ylabel("% of Entrant Cohort with Negative Earnings", fontsize=18)
+plt.legend(fontsize=16)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+# x-axis ticks only at integers
+plt.xticks(periods)
+_save("cohort_pct_neg_by_period_phi0_vs_phiT.pdf")
 
 print("\nDone.")

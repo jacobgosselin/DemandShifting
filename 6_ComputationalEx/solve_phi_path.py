@@ -41,36 +41,53 @@ N_GRID = 100
 # -----------------------------------------------------------------------------
 
 struct_params = pd.read_csv(os.path.join(_DIR, "structural_parameters.csv"))
-exit_rate = struct_params["exit_rate"].iloc[0]
-gamma_k   = 1.0 / 3
-gamma_l   = 2.0 / 3
-m_grid = discretize_choices(1e-3, 50, N_GRID, type="exp")
-k_grid = discretize_choices(1e-3, 50, N_GRID, type="exp")
 
-# Load calibrated params (alpha_a, alpha_k, sigma, rho, sigma_eps)
+# Fixed structural parameters (from ACF estimation and markup inversion)
+gamma_l   = struct_params["gamma_l"].iloc[0]
+gamma_k   = struct_params["gamma_k"].iloc[0]
+rho       = struct_params["rho"].iloc[0]
+sigma_eps = struct_params["sigma_xi"].iloc[0]
+sigma_fixed = struct_params["sigma"].iloc[0]  # fixed = mu/(mu-1) from ACF markup
+exit_rate = struct_params["exit_rate"].iloc[0]
+
+print("\nFixed structural parameters:")
+print("  gamma_k     = {:.6f}".format(gamma_k))
+print("  gamma_l     = {:.6f}".format(gamma_l))
+print("  rho         = {:.6f}".format(rho))
+print("  sigma_eps   = {:.6f}".format(sigma_eps))
+print("  sigma_fixed = {:.6f}  (fixed = mu/(mu-1) from ACF markup)".format(sigma_fixed))
+print("  exit_rate   = {:.6f}".format(exit_rate))
+
+m_grid = discretize_choices(1e-3, 5, N_GRID, type="exp")
+k_grid = discretize_choices(1e-3, 5, N_GRID, type="exp")
+
+# sigma is fixed = mu/(mu-1) from ACF markup (not calibrated)
+sigma_cal = struct_params["sigma"].iloc[0]
+
+# Load calibrated params (alpha_a, alpha_k, phi)
 load_calib = False
 calib_path = os.path.join(_DIR, "calibrated_investment_params.csv")
 if os.path.exists(calib_path) & load_calib:
-    calib_df       = pd.read_csv(calib_path)
-    alpha_a_cal    = float(calib_df["alpha_a"].iloc[0])
-    alpha_k_cal    = float(calib_df["alpha_k"].iloc[0])
-    sigma_cal      = float(calib_df["sigma"].iloc[0])
+    calib_df    = pd.read_csv(calib_path)
+    alpha_a_cal = float(calib_df["alpha_a"].iloc[0])
+    alpha_k_cal = float(calib_df["alpha_k"].iloc[0])
+    phi_cal     = float(calib_df["phi"].iloc[0])
     rho_cal        = float(calib_df["rho"].iloc[0])   if "rho"       in calib_df.columns else struct_params["rho"].iloc[0]
     sigma_eps_cal  = float(calib_df["sigma_eps"].iloc[0]) if "sigma_eps" in calib_df.columns else struct_params["sigma_xi"].iloc[0]
     fixed_cost_cal = 0.0
 else:
     print("Warning: calibrated_investment_params.csv not found; using defaults.")
-    alpha_a_cal, alpha_k_cal, sigma_cal = 0.5, 0.5, 4.0
+    alpha_a_cal, alpha_k_cal, phi_cal = 0.5, 0.5, 0.1
     rho_cal, sigma_eps_cal, fixed_cost_cal = 0.9, 0.2, 0.0
 
 print(
     f"Calibrated params: alpha_a={alpha_a_cal:.4f}, alpha_k={alpha_k_cal:.4f}, "
-    f"sigma={sigma_cal:.4f}, rho={rho_cal:.4f}, sigma_eps={sigma_eps_cal:.4f}"
+    f"phi={phi_cal:.4f}, sigma={sigma_cal:.4f} (fixed)"
 )
 print(f"Production function (fixed): gamma_k={gamma_k:.4f}, gamma_l={gamma_l:.4f}")
 
 print(f"AR(1) parameters (calibrated): rho={rho_cal:.4f}, sigma_eps={sigma_eps_cal:.4f}")
-z_grid, pi, Pi = discretize_productivity(rho_cal, sigma_eps_cal, 10)
+z_grid, pi, Pi = discretize_productivity(rho_cal, sigma_eps_cal, 15)
 
 # Load phi path from R output (4b_mstock_coef.R)
 _coefs_df    = pd.read_csv(os.path.join(_DIR, "sales_elasticity_m_by_year.csv"))
@@ -251,6 +268,7 @@ if __name__ == "__main__":
             "m_grid": m_grid,
             "k_grid": k_grid,
             "z_grid": z_grid,
+            "Pi":     Pi,
         },
         "params": _params_dict,
     }

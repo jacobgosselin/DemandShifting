@@ -66,7 +66,7 @@ ggplot(coef_year, aes(x = year, y = coef)) +
   ) +
   theme_common
 
-ggsave("figures/sales_elasticity_m_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/sales_elasticity_m_by_year.pdf", width = 10, height = 10)
 
 # Save coefficients ----
 write.csv(coef_year, file.path(REPO_DIR, "6_ComputationalEx", "sales_elasticity_m_by_year.csv"), row.names = FALSE)

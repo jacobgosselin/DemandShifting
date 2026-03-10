@@ -92,5 +92,22 @@ write.csv(pct_neg_byyear,
           file.path(REPO_DIR, "6_ComputationalEx", "pct_neg_byyear.csv"),
           row.names = FALSE)
 
+# Annual empirical time-series moments ----
+emp_trends <- analysis_data %>%
+  group_by(date) %>%
+  summarise(
+    log_sd_earnings = log(sd(ebitda,    na.rm = TRUE)),
+    log_sd_sales    = log(sd(sale,      na.rm = TRUE)),
+    med_sga_sale    = median(sga_sale,  na.rm = TRUE),
+    med_cogs_sale   = median(cogs_sale, na.rm = TRUE),
+    med_capx_sale   = median(capx_sale, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  rename(year = date)
+
+write.csv(emp_trends,
+          file.path(REPO_DIR, "6_ComputationalEx", "empirical_trends_byyear.csv"),
+          row.names = FALSE)
+
 cat("5b_exog_params.R complete.\n")
 print(struct_data)

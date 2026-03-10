@@ -49,7 +49,7 @@ ggplot(cost_ratios_long, aes(x = date, y = median_ratio, color = cost_type, grou
   ) +
   theme_common
 
-ggsave("figures/cost_ratios_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/cost_ratios_by_year.pdf", width = 10, height = 10)
 
 # 5b. Same but only for firms with EBITDA < 0 ----------------------------
 
@@ -85,4 +85,4 @@ ggplot(cost_ratios_neg_long, aes(x = date, y = median_ratio, color = cost_type, 
   ) +
   theme_common
 
-ggsave("figures/cost_ratios_neg_ebitda_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/cost_ratios_neg_ebitda_by_year.pdf", width = 10, height = 10)

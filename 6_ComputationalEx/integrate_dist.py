@@ -103,12 +103,15 @@ def calc_value(m, k, z, m_prime, k_prime, eqm, value_type):
     L_k_i = L_k(inv, alpha_k, z_k)
     L_s_i = L_s(c_val, z, k, gamma_k, gamma_l)
     earnings = p_val*c_val - W * (L_s_i + L_a_i) - fixed_cost
+    income = earnings - W * L_k(delta_k * k, alpha_k, z_k)
     revenue = p_val * c_val
     adv_ratio = (W*L_a_i) / revenue
     inv_ratio = (W*L_k_i) / revenue
     cogs_ratio = (W*L_s_i) / revenue
     if value_type == 'earnings':
         return earnings
+    elif value_type == 'income':
+        return income
     elif value_type == 'revenue':
         return revenue
     elif value_type == 'adv_ratio':
@@ -216,6 +219,14 @@ def pct_negative(m_grid, k_grid, z_grid, eqm):
     mask = earn_pdf[:, 0] < 0
     total_mass = np.sum(earn_pdf[:, 1])
     negative_mass = np.sum(earn_pdf[mask, 1])
+    return 100.0 * negative_mass / total_mass
+
+def pct_negative_income(m_grid, k_grid, z_grid, eqm):
+    """Compute percent of firms with income (earnings net of depreciation cost) < 0."""
+    income_pdf, _ = est_dist(m_grid, k_grid, z_grid, eqm, 'income')
+    mask = income_pdf[:, 0] < 0
+    total_mass = np.sum(income_pdf[:, 1])
+    negative_mass = np.sum(income_pdf[mask, 1])
     return 100.0 * negative_mass / total_mass
 
 def percentile_from_cdf(cdf, p):

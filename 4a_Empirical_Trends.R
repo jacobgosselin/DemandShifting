@@ -49,7 +49,7 @@ ggplot(neg_earnings_by_year, aes(x = date, y = pct_negative)) +
   ) +
   theme_common
 
-ggsave("figures/pct_negative_earnings_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/pct_negative_earnings_by_year.pdf", width = 10, height = 10)
 
 # compare to IRS data
 irs_corp_returns_post94 <- read.csv("data/clean/irs_corp_returns.csv") %>%
@@ -75,7 +75,7 @@ ggplot() +
   ) +
   theme_common
 
-ggsave("figures/pct_negative_earnings_compustat_vs_irs.pdf", width = 10, height = 10)
+ggsave("figures/empirical/pct_negative_earnings_compustat_vs_irs.pdf", width = 10, height = 10)
 
 # 2a (alt). Negative earnings: overlay EBITDA, Net Income, Pretax Income --------
 
@@ -96,7 +96,7 @@ ggplot(neg_earnings_alt, aes(x = date, y = pct_negative, color = measure)) +
   labs(x = "Year", y = "% Firms with Negative Earnings", color = "") +
   theme_common
 
-ggsave("figures/pct_negative_earnings_alt_measures.pdf", width = 10, height = 10)
+ggsave("figures/empirical/pct_negative_earnings_alt_measures.pdf", width = 10, height = 10)
 
 # 2a (mean/median). Average and median EBITDA/Sales over time ----------------
 
@@ -115,7 +115,7 @@ ggplot(ebitda_stats_by_year, aes(x = date, y = log_ebitda, color = stat)) +
   labs(x = "Year", y = "EBITDA (logged)", color = "") +
   theme_common
 
-ggsave("figures/mean_median_log_ebitda_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/mean_median_log_ebitda_by_year.pdf", width = 10, height = 10)
 
 # 2b. Plot average neg_spell among negative earning firms over time ----
 
@@ -139,7 +139,7 @@ ggplot(neg_spell_by_year, aes(x = date, y = mean_neg_spell)) +
   ) +
   theme_common
 
-ggsave("figures/neg_spell_over_time.pdf", width = 10, height = 10)
+ggsave("figures/empirical/neg_spell_over_time.pdf", width = 10, height = 10)
 
 # 3a. Plot log change in SD of sales over time ------------------------------------
 
@@ -169,7 +169,7 @@ ggplot(sd_sales_by_year, aes(x = date, y = log_sd)) +
   ) +
   theme_common
 
-ggsave("figures/sd_sales_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/sd_sales_by_year.pdf", width = 10, height = 10)
 
 # 3b. Top Percentiles of sales over time ------------------------
 
@@ -228,7 +228,7 @@ ggplot(top_decile_sales_long, aes(x = date, y = log_change, color = percentile, 
   ) +
   theme_common
 
-ggsave("figures/top_quantile_sales_over_time.pdf", width = 10, height = 10)
+ggsave("figures/empirical/top_quantile_sales_over_time.pdf", width = 10, height = 10)
 
 # 3c. Bottom percentiles of sales over time -------------------
 
@@ -287,7 +287,7 @@ ggplot(bottom_quantile_sales_long, aes(x = date, y = log_change, color = percent
   ) +
   theme_common
 
-ggsave("figures/bottom_quantile_sales_over_time.pdf", width = 10, height = 10)
+ggsave("figures/empirical/bottom_quantile_sales_over_time.pdf", width = 10, height = 10)
 
 # 4a. Plot log change in SD of earnings over time -------------------------
 
@@ -319,7 +319,7 @@ ggplot(sd_by_year, aes(x = date, y = log_sd)) +
   ) +
   theme_common
 
-ggsave("figures/sd_earnings_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/sd_earnings_by_year.pdf", width = 10, height = 10)
 
 # 4b. Top Percentiles of earnings over time ------------------------
 
@@ -378,7 +378,7 @@ ggplot(top_decile_long, aes(x = date, y = log_change, color = percentile, group 
   ) +
   theme_common
 
-ggsave("figures/top_quantile_earnings_over_time.pdf", width = 10, height = 10)
+ggsave("figures/empirical/top_quantile_earnings_over_time.pdf", width = 10, height = 10)
 
 # 4c. Bottom percentiles of earnings over time -------------------
 
@@ -437,7 +437,7 @@ ggplot(bottom_quantile_long, aes(x = date, y = log_change, color = percentile, g
   ) +
   theme_common
 
-ggsave("figures/bottom_quantile_earnings_over_time.pdf", width = 10, height = 10)
+ggsave("figures/empirical/bottom_quantile_earnings_over_time.pdf", width = 10, height = 10)
 
 # Bar plot of negative earnings by 2-digit NAICS sector ----------------------
 
@@ -491,7 +491,7 @@ ggplot(sector_2digit_long, aes(x = reorder(as.factor(naics_2digit),
   ) +
   theme_common
 
-ggsave("figures/neg_earnings_by_sector_2digit.pdf", width = 10, height = 10)
+ggsave("figures/empirical/neg_earnings_by_sector_2digit.pdf", width = 10, height = 10)
 
 # Earnings concentration among top 10%, 5%, 1%, and 0.1% over time --------
 
@@ -541,7 +541,7 @@ ggplot(concentration_long, aes(x = date, y = share, color = percentile, group = 
   ) +
   theme_common
 
-ggsave("figures/earnings_concentration_over_time.pdf", width = 16, height = 9)
+ggsave("figures/empirical/earnings_concentration_over_time.pdf", width = 16, height = 9)
 
 # 7. Overlayed histograms: early (1980-1984) vs late (2015-2019) earnings distribution
 earnings_early_late <- analysis_data %>%
@@ -564,7 +564,7 @@ ggplot(earnings_early_late, aes(x = ebitda, fill = period, color = period)) +
   ) +
   theme_common
 
-ggsave("figures/earnings_distribution_early_vs_late.pdf", width = 16, height = 9)
+ggsave("figures/empirical/earnings_distribution_early_vs_late.pdf", width = 16, height = 9)
 
 # Same for Information Sector only
 earnings_early_late_info <- analysis_data %>%
@@ -589,7 +589,7 @@ ggplot(earnings_early_late_info, aes(x = ebitda, fill = period, color = period))
   ) +
   theme_common
 
-ggsave("figures/earnings_distribution_early_vs_late_info_sector.pdf", width = 10, height = 9)
+ggsave("figures/empirical/earnings_distribution_early_vs_late_info_sector.pdf", width = 10, height = 9)
 
 # Median markup -----
 
@@ -611,4 +611,4 @@ ggplot(markup_by_year, aes(x = date, y = median_mu)) +
   ) +
   theme_common
 
-ggsave("figures/markup_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/markup_by_year.pdf", width = 10, height = 10)

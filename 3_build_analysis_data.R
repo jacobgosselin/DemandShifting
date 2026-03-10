@@ -129,7 +129,6 @@ analysis_data <- analysis_data %>%
 
 analysis_data <- analysis_data %>%
   filter(!is.na(ebitda) & !is.na(sale) & !is.na(cogs)) %>%
-  filter(date >= 1980 & date < 2020) %>%
   filter(!(naics_2digit %in% c(22, 52, 99)))
 
 # Step 5: Add empirical variables -----------------------------------------
@@ -166,7 +165,9 @@ analysis_data <- analysis_data %>%
     neg_spell = ifelse(neg_spell > 10, 10, neg_spell)
   ) %>%
   ungroup() %>%
-  left_join(cust_capital, by = "naics_3digit")
+  left_join(cust_capital, by = "naics_3digit") %>%
+  # Don't filter date until AFTER computing m_stock and neg_spell, which rely on full firm history
+  filter(date >= 1980 & date < 2020) 
 
 # Save --------------------------------------------------------------------
 

@@ -1,0 +1,40 @@
+
+Fixed structural parameters:
+  gamma_k     = 0.112026
+  gamma_l     = 0.855904
+  rho         = 0.815676
+  sigma_eps   = 0.038788
+  sigma_fixed = 3.144978  (fixed = mu/(mu-1) from ACF markup)
+  exit_rate   = 0.057401
+
+Calibration targets (base period):
+  med_capx/rev = 0.0451
+  pct_neg      = 10.8529%
+
+Loaded pct_neg by year: 40 years (1980-2019)
+
+Normalization: phi_0 = 0.0000  (base period)
+Fixed:         sigma = 3.144978  (from structural_parameters)
+
+Loaded initial guesses from /gpfs/projects/p32386/Demand_Shifting/calibrated_investment_params.csv:
+  alpha_a_init = 0.172749
+  alpha_k_init = 0.805817
+
+============================================================
+Phase 1: Solve for alpha_a, alpha_k  (2 params, 2 moments)
+  phi_0  = 0.0000  (normalized)
+  sigma  = 3.144978  (fixed from structural_parameters)
+  Targets: capx/rev=0.0451  pct_neg@1980=10.85%
+============================================================
+aa=0.4773 ak=0.6619 | inv=0.0356 pct=12.38% | ||res||=0.252273
+aa=0.7243 ak=0.1862 | inv=0.0094 pct=20.89% | ||res||=1.217339
+aa=0.4322 ak=0.8239 | inv=0.0446 pct=6.97% | ||res||=0.358027
+aa=0.7426 ak=0.1380 | inv=0.0069 pct=20.96% | ||res||=1.258847
+aa=0.8874 ak=0.8776 | inv=0.0613 pct=32.20% | ||res||=1.999998
+aa=0.2840 ak=0.3388 | inv=0.0172 pct=5.74% | ||res||=0.778179
+aa=0.5245 ak=0.5056 | inv=0.0268 pct=16.00% | ||res||=0.623758
+aa=0.5982 ak=0.6114 | inv=0.0334 pct=16.80% | ||res||=0.606430
+aa=0.3008 ak=0.7780 | inv=0.0409 pct=5.74% | ||res||=0.480109
+aa=0.8186 ak=0.4410 | inv=0.0243 pct=25.75% | ||res||=1.448327
+aa=0.8322 ak=0.2883 | inv=0.0152 pct=25.17% | ||res||=1.476993
+aa=0.1693 ak=0.3485 | inv=0.0176 pct=5.74% | ||res||=0.770628

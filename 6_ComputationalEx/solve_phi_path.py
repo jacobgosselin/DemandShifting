@@ -61,42 +61,30 @@ print("  exit_rate   = {:.6f}".format(exit_rate))
 m_grid = discretize_choices(1e-3, 5, N_GRID, type="exp")
 k_grid = discretize_choices(1e-3, 5, N_GRID, type="exp")
 
-# sigma is fixed = mu/(mu-1) from ACF markup (not calibrated)
-sigma_cal = struct_params["sigma"].iloc[0]
-
-# Load calibrated params (alpha_a, alpha_k, phi)
-load_calib = False
+# Load calibrated params (alpha_a, alpha_k)
+fixed_cost_cal = 0.0
 calib_path = os.path.join(_DIR, "calibrated_investment_params.csv")
-if os.path.exists(calib_path) & load_calib:
+if os.path.exists(calib_path):
     calib_df    = pd.read_csv(calib_path)
     alpha_a_cal = float(calib_df["alpha_a"].iloc[0])
     alpha_k_cal = float(calib_df["alpha_k"].iloc[0])
-    phi_cal     = float(calib_df["phi"].iloc[0])
-    sigma_cal      = float(calib_df["sigma"].iloc[0])     if "sigma"     in calib_df.columns else struct_params["sigma"].iloc[0]
-    rho_cal        = float(calib_df["rho"].iloc[0])       if "rho"       in calib_df.columns else struct_params["rho"].iloc[0]
-    sigma_eps_cal  = float(calib_df["sigma_eps"].iloc[0]) if "sigma_eps" in calib_df.columns else struct_params["sigma_xi"].iloc[0]
-    fixed_cost_cal = 0.0
 else:
     print("Warning: calibrated_investment_params.csv not found; using defaults.")
-    alpha_a_cal, alpha_k_cal, phi_cal = 0.5, 0.5, 0.1
-    rho_cal, sigma_eps_cal, fixed_cost_cal = 0.9, 0.2, 0.0
+    alpha_a_cal, alpha_k_cal = 0.5, 0.5
 
 print(
     f"Calibrated params: alpha_a={alpha_a_cal:.4f}, alpha_k={alpha_k_cal:.4f}, "
-    f"phi={phi_cal:.4f}, sigma={sigma_cal:.4f} (fixed)"
 )
 print(f"Production function (fixed): gamma_k={gamma_k:.4f}, gamma_l={gamma_l:.4f}")
+z_grid, pi, Pi = discretize_productivity(rho, sigma_eps, 15)
 
-print(f"AR(1) parameters (calibrated): rho={rho_cal:.4f}, sigma_eps={sigma_eps_cal:.4f}")
-z_grid, pi, Pi = discretize_productivity(rho_cal, sigma_eps_cal, 15)
-
-# Load phi path from R output (4b_mstock_coef.R)
-_coefs_df    = pd.read_csv(os.path.join(_DIR, "sales_elasticity_m_by_year.csv"))
-coefs_byyear = _coefs_df[["year", "coef"]].to_numpy()  # shape (T, 2)
+# Load phi path from calibration (phi_path.csv)
+_phi_df    = pd.read_csv(os.path.join(_DIR, "phi_path.csv"))
+phi_byyear = _phi_df[["year", "phi"]].to_numpy()  # shape (T, 2)
 
 # Params dict for passing to workers (avoids passing EqmParams across fork boundary)
 _params_dict = dict(
-    exit_rate=exit_rate, sigma=sigma_cal, alpha_a=alpha_a_cal, alpha_k=alpha_k_cal,
+    exit_rate=exit_rate, sigma=sigma_fixed, alpha_a=alpha_a_cal, alpha_k=alpha_k_cal,
     z_k=1.0, fixed_cost=fixed_cost_cal, gamma_k=gamma_k, gamma_l=gamma_l,
 )
 
@@ -184,8 +172,8 @@ if __name__ == "__main__":
 
     # ---- phi path ----
     # phi = beta * ((1-gamma_l)*sigma + gamma_l) - 1   (arbitrary-scale mapping)
-    years_arr       = coefs_byyear[:, 0].astype(int)
-    phi_track_values = coefs_byyear[:, 1] * ((1 - gamma_l) * sigma_cal + gamma_l) - 1
+    years_arr       = phi_byyear[:, 0].astype(int)
+    phi_track_values = phi_byyear[:, 1] 
 
     print("\nPhi path:")
     for yr, phi in zip(years_arr, phi_track_values):

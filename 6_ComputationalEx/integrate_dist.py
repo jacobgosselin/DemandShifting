@@ -279,7 +279,7 @@ def sales_wtd_productivity(m_grid, k_grid, z_grid, eqm):
                 rev = calc_value(m_val, k_val, z_val, m_prime, k_prime, eqm, 'revenue')
                 num += z_val * rev * mass
                 den += rev * mass
-    return num / den if den > 0 else np.nan
+    return num # / den if den > 0 else np.nan
 
 def avg_firm_earnings_path(eqm, z_grid, T=10):
     """
@@ -385,9 +385,30 @@ def cohort_neg_path(eqm, z_grid, Pi, T=50):
     return pct_neg
 
 
-def avg_neg_periods(eqm, z_grid, Pi, T=50):
-    """Expected number of periods an entrant earns < 0 in the first T periods."""
-    return np.sum(cohort_neg_path(eqm, z_grid, Pi, T)) / 100.0
+def avg_age_neg_earners(eqm, z_grid, Pi, T=50):
+    """
+    Average age of firms currently earning < 0 in the stationary equilibrium.
+
+    In steady state, the fraction of firms at age t follows a geometric distribution
+    with parameter entry_perc:
+        w[t] = entry_perc * (1 - entry_perc)^t   (normalized over T periods)
+
+    Combined with cohort_neg_path (prob of neg earnings at age t), this gives
+    the age distribution of negative-earning firms. Returns E[age | earnings < 0].
+    """
+    entry_perc = eqm['params']['entry_perc']
+    pct_neg = cohort_neg_path(eqm, z_grid, Pi, T)   # shape (T,), values 0-100
+
+    ages = np.arange(T)
+    age_weights = entry_perc * (1 - entry_perc) ** ages
+    age_weights /= age_weights.sum()                  # normalize within T periods
+
+    neg_mass = age_weights * (pct_neg / 100.0)        # joint: age t AND neg earnings
+    total_neg = neg_mass.sum()
+
+    if total_neg == 0:
+        return np.nan
+    return float(np.sum(ages * neg_mass) / total_neg)
 
 
 def agg_labor_shares(m_grid, k_grid, z_grid, eqm):

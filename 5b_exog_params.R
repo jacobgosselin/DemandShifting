@@ -101,6 +101,7 @@ emp_trends <- analysis_data %>%
     med_sga_sale    = median(sga_sale,  na.rm = TRUE),
     med_cogs_sale   = median(cogs_sale, na.rm = TRUE),
     med_capx_sale   = median(capx_sale, na.rm = TRUE),
+    avg_neg_spell   = mean(neg_spell[neg_ebitda == 1],   na.rm = TRUE),
     .groups = "drop"
   ) %>%
   rename(year = date)

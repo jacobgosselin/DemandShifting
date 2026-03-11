@@ -24,7 +24,7 @@ from integrate_dist import (
     median_adv_ratio, median_inv_ratio, median_cogs_ratio,
     median_earnings, mean_earnings,
     agg_capital_stock, sales_wtd_productivity, agg_labor_shares,
-    avg_firm_earnings_path, cohort_neg_path, avg_neg_periods,
+    avg_firm_earnings_path, cohort_neg_path, avg_age_neg_earners,
 )
 
 # -----------------------------------------------------------------------------
@@ -132,9 +132,9 @@ sd_sales_arr    = np.array(sd_sales_raw)
 sd_earnings_vals = np.log(sd_earnings_arr / sd_earnings_arr[0])
 sd_sales_vals    = np.log(sd_sales_arr    / sd_sales_arr[0])
 
-# Average periods of negative earnings per cohort (T=10)
-print("\nComputing avg neg periods by year (slow) ...")
-avg_neg_vals = [avg_neg_periods(eqms[yr], z_grid, Pi, T=10) for yr in years]
+# Average age of negative-earning firms in the stationary distribution
+print("\nComputing avg age of neg-earning firms by year (slow) ...")
+avg_neg_vals = [avg_age_neg_earners(eqms[yr], z_grid, Pi, T=10) for yr in years]
 
 # -----------------------------------------------------------------------------
 # Figures
@@ -289,6 +289,7 @@ plt.grid(True, alpha=0.3)
 # x-axis ticks only at integers
 plt.xticks(periods)
 _save("cohort_pct_neg_by_period_phi0_vs_phiT.pdf")
+print(cneg_phiT)
 
 # Figure A: Two-panel — phi by year + pct_neg by year
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
@@ -305,13 +306,19 @@ ax2.grid(True, alpha=0.3)
 plt.tight_layout()
 _save("phi_and_pct_neg_by_year.pdf")
 
-# Figure B: Average periods of negative earnings per cohort by year
-plt.figure(figsize=(10, 10))
-plt.plot(years, avg_neg_vals, "o-", linewidth=3, markersize=10)
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Avg. Periods with Negative Earnings (first 10)", fontsize=18)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
+# Figure B: Two-panel — empirical vs. model avg neg spell/periods by year
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+ax1.plot(emp_df.index, emp_df["avg_neg_spell"], "o-", linewidth=3, markersize=10)
+ax1.set_xlabel("Year", fontsize=18)
+ax1.set_ylabel("Avg. Neg. Earnings Spell Length (Data)", fontsize=18)
+ax1.tick_params(axis="both", which="major", labelsize=16)
+ax1.grid(True, alpha=0.3)
+ax2.plot(years, avg_neg_vals, "o-", linewidth=3, markersize=10)
+ax2.set_xlabel("Year", fontsize=18)
+ax2.set_ylabel("Avg. Age of Neg.-Earning Firms (Model, periods)", fontsize=18)
+ax2.tick_params(axis="both", which="major", labelsize=16)
+ax2.grid(True, alpha=0.3)
+plt.tight_layout()
 _save("avg_neg_periods_by_year.pdf")
 
 # Figure C: Two-panel — empirical vs model cost ratios

@@ -128,7 +128,7 @@ analysis_data <- analysis_data %>%
 # Step 4: Apply analysis filters ------------------------------------------
 
 analysis_data <- analysis_data %>%
-  filter(!is.na(ebitda) & !is.na(sale) & !is.na(cogs)) %>%
+  filter(!is.na(ebitda) & !is.na(sale) & !is.na(cogs) & !is.na(capx)) %>%
   filter(!(naics_2digit %in% c(22, 52, 99)))
 
 # Step 5: Add empirical variables -----------------------------------------

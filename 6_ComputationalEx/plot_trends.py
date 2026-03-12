@@ -24,7 +24,8 @@ from integrate_dist import (
     median_adv_ratio, median_inv_ratio, median_cogs_ratio,
     median_earnings, mean_earnings,
     agg_capital_stock, sales_wtd_productivity, agg_labor_shares,
-    avg_firm_earnings_path, cohort_neg_path, avg_age_neg_earners,
+    avg_firm_earnings_path, cohort_neg_path,
+    avg_neg_spell_cohort,
 )
 
 # -----------------------------------------------------------------------------
@@ -134,7 +135,7 @@ sd_sales_vals    = np.log(sd_sales_arr    / sd_sales_arr[0])
 
 # Average age of negative-earning firms in the stationary distribution
 print("\nComputing avg age of neg-earning firms by year (slow) ...")
-avg_neg_vals = [avg_age_neg_earners(eqms[yr], z_grid, Pi, T=10) for yr in years]
+avg_neg_vals = [avg_neg_spell_cohort(eqms[yr], z_grid, Pi, T=20) for yr in years]
 
 # -----------------------------------------------------------------------------
 # Figures
@@ -312,10 +313,12 @@ ax1.plot(emp_df.index, emp_df["avg_neg_spell"], "o-", linewidth=3, markersize=10
 ax1.set_xlabel("Year", fontsize=18)
 ax1.set_ylabel("Avg. Neg. Earnings Spell Length (Data)", fontsize=18)
 ax1.tick_params(axis="both", which="major", labelsize=16)
+ax1.set_ylim(0, 5)
 ax1.grid(True, alpha=0.3)
 ax2.plot(years, avg_neg_vals, "o-", linewidth=3, markersize=10)
 ax2.set_xlabel("Year", fontsize=18)
-ax2.set_ylabel("Avg. Age of Neg.-Earning Firms (Model, periods)", fontsize=18)
+ax2.set_ylabel("Avg. Neg. Earnings Spell Length (Model)", fontsize=18)
+ax2.set_ylim(0, 5)
 ax2.tick_params(axis="both", which="major", labelsize=16)
 ax2.grid(True, alpha=0.3)
 plt.tight_layout()

@@ -411,6 +411,100 @@ def avg_age_neg_earners(eqm, z_grid, Pi, T=50):
     return float(np.sum(ages * neg_mass) / total_neg)
 
 
+def avg_neg_spell_cohort(eqm, z_grid, Pi, T=50):
+    """
+    Average consecutive negative earnings spell length for currently-negative-earning
+    firms, using the stationary age distribution to weight across cohort ages.
+
+    Algorithm
+    ---------
+    1. Initialise cohort at (m_grid[0], k_grid[0]), z ~ stationary Markov.
+    2. Carry augmented state Dist_aug[s] = 3-D mass over (m, k, z) with
+       current consecutive-negative-spell = s.
+    3. Each period: split by sign of earnings, increment or reset spell,
+       then forward-step each slice to next (m, k, z) via Pi.
+    4. Stop when the negative-earning fraction of the cohort reaches 0.
+    5. Weight the per-age spell distributions by the geometric stationary
+       age distribution (parameter entry_perc) and return E[spell | neg].
+    """
+    m_grid     = eqm['m_grid']
+    k_grid     = eqm['k_grid']
+    m_pol      = eqm['policies']['m_policy']
+    k_pol      = eqm['policies']['k_policy']
+    entry_perc = eqm['params']['entry_perc']
+
+    pi_z        = stationary_markov(Pi)
+    Nm, Nk, Nz = len(m_grid), len(k_grid), len(z_grid)
+
+    # Precompute earnings sign at every grid point
+    is_neg = np.zeros((Nm, Nk, Nz), dtype=bool)
+    for im in range(Nm):
+        for ik in range(Nk):
+            for iz in range(Nz):
+                mp   = m_pol[im, ik, iz]
+                kp   = k_pol[im, ik, iz]
+                earn = calc_value(m_grid[im], k_grid[ik], z_grid[iz],
+                                  mp, kp, eqm, 'earnings')
+                is_neg[im, ik, iz] = earn < 0
+
+    # Dist_aug[s] = 3-D distribution over (m, k, z) for consecutive spell = s
+    Dist_aug    = [np.zeros((Nm, Nk, Nz)) for _ in range(T + 1)]
+    Dist_aug[0][0, 0, :] = pi_z   # entrants: no history → spell 0
+
+    age_data = []   # list of (neg_mass_by_spell, total_mass) per age
+
+    for t in range(T):
+        new_Dist_aug      = [np.zeros((Nm, Nk, Nz)) for _ in range(T + 1)]
+        neg_mass_by_spell = np.zeros(T + 1)
+        total_mass        = 0.0
+
+        for s in range(t + 2):          # spell can be at most t+1 after this period
+            if s > T:
+                break
+            D_s = Dist_aug[s]
+            if D_s.sum() == 0:
+                continue
+
+            D_neg = D_s *  is_neg        # negative earners this period
+            D_pos = D_s * ~is_neg        # non-negative earners this period
+
+            total_mass += D_s.sum()
+
+            new_s = s + 1                # spell increments for neg earners
+            if new_s <= T:
+                neg_mass_by_spell[new_s] += D_neg.sum()
+                new_Dist_aug[new_s] += forward_step(D_neg, m_pol, k_pol,
+                                                    Pi, m_grid, k_grid)
+
+            new_Dist_aug[0] += forward_step(D_pos, m_pol, k_pol,
+                                            Pi, m_grid, k_grid)
+
+        pct_neg = 100 * neg_mass_by_spell.sum() / total_mass if total_mass > 0 else 0.0
+        age_data.append((neg_mass_by_spell.copy(), total_mass))
+        Dist_aug = new_Dist_aug
+
+        if pct_neg == 0:
+            break
+
+    # Weight by stationary age distribution
+    n_ages      = len(age_data)
+    ages        = np.arange(n_ages)
+    age_weights = entry_perc * (1 - entry_perc) ** ages
+    age_weights /= age_weights.sum()
+
+    total_spell_dist = np.zeros(T + 1)
+    for t, (neg_mass_by_spell, total_mass) in enumerate(age_data):
+        if total_mass > 0:
+            total_spell_dist += age_weights[t] * (neg_mass_by_spell / total_mass)
+
+    total_neg = total_spell_dist.sum()
+    if total_neg == 0:
+        return np.nan
+
+    spell_lengths = np.arange(T + 1)
+    return float(np.sum(spell_lengths * total_spell_dist) / total_neg)
+
+
 def agg_labor_shares(m_grid, k_grid, z_grid, eqm):
     """
     Aggregate labor allocations: (L_a, L_k, L_s).

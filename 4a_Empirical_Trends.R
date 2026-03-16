@@ -4,6 +4,7 @@ library(tidyr)
 library(dplyr)
 library(stringr)
 library(ggplot2)
+library(ggpubr)
 library(viridis)
 library(readr)
 
@@ -98,7 +99,7 @@ ggplot(neg_earnings_alt, aes(x = date, y = pct_negative, color = measure)) +
 
 ggsave("figures/empirical/pct_negative_earnings_alt_measures.pdf", width = 10, height = 10)
 
-# 2a (mean/median). Average and median EBITDA/Sales over time ----------------
+# 2b (mean/median). Average and median EBITDA/Sales over time ----------------
 
 ebitda_stats_by_year <- analysis_data %>%
   group_by(date) %>%
@@ -117,7 +118,7 @@ ggplot(ebitda_stats_by_year, aes(x = date, y = log_ebitda, color = stat)) +
 
 ggsave("figures/empirical/mean_median_log_ebitda_by_year.pdf", width = 10, height = 10)
 
-# 2b. Plot average neg_spell among negative earning firms over time ----
+# 2c Plot average neg_spell among negative earning firms over time ----
 
 neg_spell_by_year <- analysis_data %>%
   filter(neg_ebitda == 1) %>%
@@ -140,6 +141,34 @@ ggplot(neg_spell_by_year, aes(x = date, y = mean_neg_spell)) +
   theme_common
 
 ggsave("figures/empirical/neg_spell_over_time.pdf", width = 10, height = 10)
+
+# 2 panel figure with percent negative and average neg spell over time
+neg_earnings_panel <- ggplot(neg_earnings_by_year, aes(x = date, y = pct_negative)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  labs(
+    title = "",
+    x = "Year",
+    y = "Percent of Firms with EBITDA < 0 (%)",
+    # caption = paste0("N firms ranges from ", min(neg_earnings_by_year$n_firms),
+                    #  " to ", max(neg_earnings_by_year$n_firms))
+  ) +
+  theme_common
+
+neg_spell_panel <- ggplot(neg_spell_by_year, aes(x = date, y = mean_neg_spell)) +
+  geom_line(linewidth = 2, color = "black") +
+  geom_point(size = 3, color = "black") +
+  labs(
+    title = "",
+    x = "Year",
+    y = "Average Negative Earnings Spell Length (Years)",
+    # caption = paste0("N negative earning firms ranges from ", min(neg_spell_by_year$n_firms),
+                    #  " to ", max(neg_spell_by_year$n_firms))
+  ) +
+  theme_common
+
+ggarrange(neg_earnings_panel, neg_spell_panel, ncol = 2, nrow = 1)
+ggsave("figures/empirical/neg_earnings_and_spell_over_time.pdf", width = 16, height = 9)
 
 # 3a. Plot log change in SD of sales over time ------------------------------------
 

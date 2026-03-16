@@ -78,7 +78,7 @@ ggplot() +
 
 ggsave("figures/empirical/pct_negative_earnings_compustat_vs_irs.pdf", width = 10, height = 10)
 
-# 2a (alt). Negative earnings: overlay EBITDA, Net Income, Pretax Income --------
+# Overlay EBITDA, Net Income, Pretax Income
 
 neg_earnings_alt <- analysis_data %>%
   group_by(date) %>%
@@ -169,6 +169,39 @@ neg_spell_panel <- ggplot(neg_spell_by_year, aes(x = date, y = mean_neg_spell)) 
 
 ggarrange(neg_earnings_panel, neg_spell_panel, ncol = 2, nrow = 1)
 ggsave("figures/empirical/neg_earnings_and_spell_over_time.pdf", width = 16, height = 9)
+
+# 2d Plots using neg_profits (expensing capital) ----
+# profits = sale - cogs - sga - capx (built in 3_build_analysis_data.R)
+
+neg_profits_by_year <- analysis_data %>%
+  group_by(date) %>%
+  reframe(
+    pct_negative = mean(neg_profits, na.rm = TRUE) * 100,
+    n_firms = n()
+  )
+
+neg_profits_spell_by_year <- analysis_data %>%
+  filter(neg_profits == 1) %>%
+  group_by(date) %>%
+  reframe(
+    mean_neg_spell = mean(neg_profits_spell, na.rm = TRUE),
+    n_firms = n()
+  )
+
+neg_profits_panel <- ggplot(neg_profits_by_year, aes(x = date, y = pct_negative)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  labs(x = "Year", y = "Percent of Firms with Profits < 0 (%)") +
+  theme_common
+
+neg_profits_spell_panel <- ggplot(neg_profits_spell_by_year, aes(x = date, y = mean_neg_spell)) +
+  geom_line(linewidth = 2, color = "black") +
+  geom_point(size = 3, color = "black") +
+  labs(x = "Year", y = "Average Negative Profits Spell Length (Years)") +
+  theme_common
+
+ggarrange(neg_profits_panel, neg_profits_spell_panel, ncol = 2, nrow = 1)
+ggsave("figures/empirical/neg_profits_and_spell_over_time.pdf", width = 16, height = 9)
 
 # 3a. Plot log change in SD of sales over time ------------------------------------
 

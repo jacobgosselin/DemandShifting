@@ -162,7 +162,11 @@ analysis_data <- analysis_data %>%
   arrange(gvkey, date) %>%
   mutate(
     neg_spell = sequence(rle(neg_ebitda)$lengths) * neg_ebitda,
-    neg_spell = ifelse(neg_spell > 10, 10, neg_spell)
+    neg_spell = ifelse(neg_spell > 10, 10, neg_spell),
+    neg_profits = as.numeric((sale - cogs - xsga - capx) < 0),
+    neg_profits_spell = sequence(rle(as.integer((sale - cogs - xsga - capx) < 0))$lengths) *
+                        as.integer((sale - cogs - xsga - capx) < 0),
+    neg_profits_spell = ifelse(neg_profits_spell > 10, 10, neg_profits_spell)
   ) %>%
   ungroup() %>%
   left_join(cust_capital, by = "naics_3digit") %>%

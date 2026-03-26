@@ -501,7 +501,35 @@ ggplot(bottom_quantile_long, aes(x = date, y = log_change, color = percentile, g
 
 ggsave("figures/empirical/bottom_quantile_earnings_over_time.pdf", width = 10, height = 10)
 
-# Bar plot of negative earnings by 2-digit NAICS sector ----------------------
+
+# 4d: Joint plot of log sd earnings + log sd sales over time ----------------
+
+sd_joint <- bind_rows(
+  sd_by_year       %>% mutate(series = "EBITDA"),
+  sd_sales_by_year %>% mutate(series = "Sales")
+)
+
+ggplot(sd_joint, aes(x = date, y = log_sd, color = series, group = series)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+  scale_color_manual(
+    values = setNames(palette_2, c("EBITDA", "Sales")),
+    labels = c("EBITDA" = "EBITDA", "Sales" = "Sales")
+  ) +
+  labs(
+    title = "",
+    subtitle = "",
+    x = "Year",
+    y = "Std. Deviation (Logged)",
+    color = ""
+  ) +
+  theme_common
+
+ggsave("figures/empirical/sd_joint_by_year.pdf", width = 10, height = 10)
+
+
+# 5: Bar plot of negative earnings by 2-digit NAICS sector ----------------------
 
 sector_year_data_2digit <- analysis_data %>%
   mutate(naics_2digit = as.numeric(str_sub(naics_3digit, 1, 2))) %>%

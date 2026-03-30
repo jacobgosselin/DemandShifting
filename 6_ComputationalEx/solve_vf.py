@@ -190,13 +190,17 @@ def backward_step_alt1d(Vk, Vm, m_grid, k_grid, z_grid, Pi,
         Vm0 = pi_M(MM, KK, zval, c_agg, sigma, W, gamma_k, gamma_l, phi)
         Vk0 = pi_K(MM, KK, zval, c_agg, sigma, W, gamma_k, gamma_l, phi)
         if invest_m:
+            # Note: L_a_deriv = EVm * beta * (1-entry_perc) / (W*P_M). I.e. continuation value already incorporates exit probability adjustment and discounting.
             Vm_new[:, :, iz] = Vm0 + (1.0 - delta_m) * L_a_deriv_hat[:, :, iz] * W * P_M
         else:
-            Vm_new[:, :, iz] = Vm0  # No continuation value from customer investment
+            # Filler for case without customer investment
+            Vm_new[:, :, iz] = Vm0  
         if invest_k:
+            # Note: L_k_deriv = EVk * beta * (1-entry_perc) / W. I.e. continuation value already incorporates exit probability adjustment and discounting.
             Vk_new[:, :, iz] = Vk0 + (1.0 - delta_k) * L_k_deriv_hat[:, :, iz] * W
         else:
-            Vk_new[:, :, iz] = Vk0  # No continuation value from capital investment
+            # Filler for case without capital investment
+            Vk_new[:, :, iz] = Vk0  
 
     return m_policy, k_policy, Vm_new, Vk_new
 

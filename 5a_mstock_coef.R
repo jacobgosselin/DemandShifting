@@ -23,11 +23,12 @@ reg_data <- analysis_data %>%
   ) %>%
   mutate(
     log_sale    = log(sale),
-    log_m_stock = log(m_stock)
+    log_m_stock = log(m_stock),
+    log_k_stock = log(ppegt)
   ) %>%
   filter(
-    !is.na(log_sale)    & !is.na(log_m_stock) &
-    !is.infinite(log_sale) & !is.infinite(log_m_stock)
+    !is.na(log_sale)    & !is.na(log_m_stock) & !is.na(log_k_stock) &
+    !is.infinite(log_sale) & !is.infinite(log_m_stock) & !is.infinite(log_k_stock)
   ) %>%
   group_by(gvkey) %>%
   filter(n() > 1) %>%
@@ -35,7 +36,7 @@ reg_data <- analysis_data %>%
 
 # Two-way FE regression with year-interacted log(m_stock) ----
 reg <- feols(
-  log_sale ~ log_m_stock:i(date) | date:naics_2digit + gvkey,
+  log_sale ~ log_m_stock:i(date) + log_k_stock | gvkey + sector:date,
   data = reg_data
 )
 reg <- summary(reg, se = "hetero")
@@ -50,7 +51,10 @@ coef_year <- data.frame(
     ci_lower = coef - 1.65 * se,
     ci_upper = coef + 1.65 * se
   ) %>%
-  select(year, coef, ci_lower, ci_upper)
+  select(year, coef, ci_lower, ci_upper) %>%
+  filter( 
+    !is.na(year)
+  )
 
 print(coef_year)
 

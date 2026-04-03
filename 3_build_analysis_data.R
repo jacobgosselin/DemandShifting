@@ -63,8 +63,8 @@ analysis_data <- analysis_data %>%
   ) %>%
   group_by(naics_2digit, date) %>%
   mutate(
-    # m_inv = sga / sum(sga, na.rm = TRUE)
-    m_inv = 0.3 * sga
+    m_inv = sga / sum(sga, na.rm = TRUE)
+    # m_inv = sga
   ) %>%
   group_by(gvkey) %>%
   arrange(gvkey, date)
@@ -109,11 +109,11 @@ analysis_data <- analysis_data %>%
   group_by(gvkey) %>%
   arrange(gvkey, date) %>%
   mutate(
-    founding_imputed = ifelse(is.na(founding), date - med_dist_firstobs, founding),
+    founding_imputed = ifelse(is.na(founding), date - avg_dist_firstobs, founding),
     age = date - founding_imputed,
     m_stock = {
       delta <- delta_m
-      g     <- med_preIPO_growth
+      g     <- avg_preIPO_growth
       r     <- (1 - delta) / (1 + g)
       init_val <- first(m_inv) * (1 - r^first(age)) / (1 - r)
       Reduce(function(prev, curr) (1 - delta) * prev + curr,
@@ -121,12 +121,13 @@ analysis_data <- analysis_data %>%
              init = init_val,
              accumulate = TRUE)
     }
-  ) %>%
-  ungroup() %>%
-  group_by(naics_2digit, date) %>%
-  mutate( 
-    m_stock = m_stock / sum(m_stock, na.rm = TRUE) # normalize to sum to 1 within industry-year
-  )
+  ) 
+  # %>%
+  # ungroup() %>%
+  # group_by(naics_2digit, date) %>%
+  # mutate( 
+  #   m_stock = m_stock / sum(m_stock, na.rm = TRUE) # normalize to sum to 1 within industry-year
+  # )
 
 
 # Step 4: Apply analysis filters ------------------------------------------

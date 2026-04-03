@@ -2,6 +2,7 @@ setwd("/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.no
 REPO_DIR <- "/Users/jacobgosselin/Documents(local)/GitHub/DemandShifting"
 library(fixest)
 library(dplyr)
+library(stringr)
 library(ggplot2)
 
 # Common plot theme
@@ -16,6 +17,11 @@ load("data/clean/analysis_data.RData")
 
 # Singleton and finiteness filters for regression ----
 reg_data <- analysis_data %>%
+  group_by(gvkey) %>% arrange(gvkey, date) %>%
+  mutate(
+    m_stock_lag1 = lag(m_stock, 1),
+    ppegt_lag1  = lag(ppegt, 1)
+  ) %>%
   filter(
     !is.na(sale) & !is.na(m_stock) &
     !is.infinite(sale) & !is.infinite(m_stock) & 
@@ -24,7 +30,8 @@ reg_data <- analysis_data %>%
   mutate(
     log_sale    = log(sale),
     log_m_stock = log(m_stock),
-    log_k_stock = log(ppegt)
+    log_k_stock = log(ppegt),
+    sector_year = paste0(sector, "_", date)
   ) %>%
   filter(
     !is.na(log_sale)    & !is.na(log_m_stock) & !is.na(log_k_stock) &
@@ -36,46 +43,53 @@ reg_data <- analysis_data %>%
 
 # Two-way FE regression with year-interacted log(m_stock) ----
 reg <- feols(
-  log_sale ~ log_m_stock:i(date) + log_k_stock | gvkey + sector:date,
+  log_sale ~ log_m_stock:i(date) + log_k_stock | sector:date + gvkey,
   data = reg_data
 )
+
 reg <- summary(reg, se = "hetero")
 
 # Extract coefficients and confidence intervals ----
-coef_year <- data.frame(
-  year = as.numeric(gsub("log_m_stock:date::", "", names(coef(reg)))),
-  coef = coef(reg),
-  se   = se(reg)
-) %>%
-  mutate(
-    ci_lower = coef - 1.65 * se,
-    ci_upper = coef + 1.65 * se
+all_names <- names(coef(reg))
+all_coefs <- coef(reg)
+all_se    <- se(reg)
+
+coef_m <- data.frame(
+  coef     = all_coefs,
+  se       = all_se,
+  variable = all_names
+  ) %>% 
+  filter(
+    # log_m_stock is in variable
+    str_detect(variable, "log_m_stock")
   ) %>%
-  select(year, coef, ci_lower, ci_upper) %>%
-  filter( 
-    !is.na(year)
+  mutate(
+    variable = "Customer Capital (m_stock)",
+    year = 1980:2019,
+    ci_upper = coef + 1.65 * se,
+    ci_lower = coef - 1.65 * se
   )
 
-print(coef_year)
-
 # Plot ----
-ggplot(coef_year, aes(x = year, y = coef)) +
-  geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper), alpha = 0.2) +
+ggplot(coef_m, aes(x = year, y = coef)) +
+  geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper), alpha = 0.15) +
   geom_line(linewidth = 2) +
   geom_point(size = 3) +
   labs(
-    title = "",
-    x     = "Year",
-    y     = "Sales Elasticity of Customer Capital"
+    title  = "",
+    x      = "Year",
+    y      = "Sales Elasticity",
+    color  = NULL,
+    fill   = NULL
   ) +
   theme_common
 
 ggsave("figures/empirical/sales_elasticity_m_by_year.pdf", width = 10, height = 10)
 
 # Save coefficients ----
-write.csv(coef_year, file.path(REPO_DIR, "6_ComputationalEx", "sales_elasticity_m_by_year.csv"), row.names = FALSE)
+write.csv(coef_m, file.path(REPO_DIR, "6_ComputationalEx", "sales_elasticity_m_by_year.csv"), row.names = FALSE)
 
 cat("4b_mstock_coef.R complete.\n")
-cat("Years in coefficient table:", nrow(coef_year), "\n")
+cat("Years in coefficient table:", nrow(coef_m), "\n")
 cat("Saved: figures/sales_elasticity_m_by_year.pdf\n")
 cat("Saved: data/clean/sales_elasticity_m_by_year.csv\n")

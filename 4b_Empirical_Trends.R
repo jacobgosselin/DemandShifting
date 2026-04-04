@@ -10,9 +10,10 @@ library(ggpubr)
 
 load("data/clean/analysis_data.RData")
 
-# Common theme for all plots
-theme_common <- theme_minimal(base_size = 24) +
+# Common theme and palette for all plots
+theme_common <- theme_minimal(base_size = 18) +
   theme(
+    text = element_text(family = "serif", size = 18),
     plot.title = element_text(face = "bold"),
     legend.position = "bottom"
   )
@@ -51,7 +52,7 @@ p_all <- ggplot(cost_ratios_long, aes(x = date, y = median_ratio, color = cost_t
   ) +
   theme_common
 
-ggsave("figures/empirical/cost_ratios_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/cost_ratios_by_year.pdf", width = 8, height = 6)
 
 # b. Same but only for firms with EBITDA < 0 ----------------------------
 
@@ -89,7 +90,7 @@ p_neg <- ggplot(cost_ratios_neg_long, aes(x = date, y = median_ratio, color = co
   ) +
   theme_common
 
-ggsave("figures/empirical/cost_ratios_neg_ebitda_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/cost_ratios_neg_ebitda_by_year.pdf", width = 8, height = 6)
 
 # c. 2-panel figure ----------------------------
 

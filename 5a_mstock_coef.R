@@ -6,8 +6,9 @@ library(stringr)
 library(ggplot2)
 
 # Common plot theme
-theme_common <- theme_minimal(base_size = 24) +
+theme_common <- theme_minimal(base_size = 18) +
   theme(
+    text = element_text(family = "serif", size = 18),
     plot.title = element_text(face = "bold"),
     legend.position = "bottom"
   )
@@ -84,7 +85,7 @@ ggplot(coef_m, aes(x = year, y = coef)) +
   ) +
   theme_common
 
-ggsave("figures/empirical/sales_elasticity_m_by_year.pdf", width = 10, height = 10)
+ggsave("figures/empirical/sales_elasticity_m_by_year.pdf", width = 8, height = 6)
 
 # Save coefficients ----
 write.csv(coef_m, file.path(REPO_DIR, "6_ComputationalEx", "sales_elasticity_m_by_year.csv"), row.names = FALSE)

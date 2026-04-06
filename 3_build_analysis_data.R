@@ -141,6 +141,9 @@ analysis_data <- analysis_data %>%
 analysis_data <- analysis_data %>%
   mutate(
     neg_ebitda    = as.numeric(ebitda < 0),
+    neg_pi        = as.numeric(pi < 0),
+    neg_ni        = as.numeric(ni < 0),
+    neg_profits   = as.numeric((sale - cogs - xsga - capx) < 0),
     rd            = xrd + rdip,
     rd_sale_raw   = rd / sale,
     sga_sale_raw  = sga / sale,
@@ -168,9 +171,11 @@ analysis_data <- analysis_data %>%
   mutate(
     neg_spell = sequence(rle(neg_ebitda)$lengths) * neg_ebitda,
     neg_spell = ifelse(neg_spell > 10, 10, neg_spell),
-    neg_profits = as.numeric((sale - cogs - xsga - capx) < 0),
-    neg_profits_spell = sequence(rle(as.integer((sale - cogs - xsga - capx) < 0))$lengths) *
-                        as.integer((sale - cogs - xsga - capx) < 0),
+    neg_pi_spell = sequence(rle(neg_pi)$lengths) * neg_pi,
+    neg_pi_spell = ifelse(neg_pi_spell > 10, 10, neg_pi_spell),
+    neg_ni_spell = sequence(rle(neg_ni)$lengths) * neg_ni,
+    neg_ni_spell = ifelse(neg_ni_spell > 10, 10, neg_ni_spell),
+    neg_profits_spell = sequence(rle(neg_profits)$lengths) * neg_profits,
     neg_profits_spell = ifelse(neg_profits_spell > 10, 10, neg_profits_spell)
   ) %>%
   ungroup() %>%

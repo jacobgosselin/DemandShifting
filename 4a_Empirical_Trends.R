@@ -30,28 +30,50 @@ palette_2 <- viridis::inferno(2, begin = 0.0, end = 0.9)
 palette_3 <- viridis::inferno(3, begin = 0.0, end = 0.9)
 palette_4 <- viridis::inferno(4, begin = 0.0, end = 0.9)
 
-# 2a. Plot percent of firms with negative earnings by year ---------------
+# 2 Plots for Rise of Neg. Earnings ---------------
 
-neg_earnings_by_year <- analysis_data %>%
+neg_earnings_byyear <- analysis_data %>%
   group_by(date) %>%
   reframe(
-    pct_negative = mean(ebitda < 0) * 100,
+    neg_ebitda_spell = mean(neg_spell[neg_ebitda == 1], na.rm = TRUE),
+    neg_pi_spell = mean(neg_pi_spell[neg_pi == 1], na.rm = TRUE),
+    neg_ni_spell = mean(neg_ni_spell[neg_ni == 1], na.rm = TRUE),
+    neg_profits_spell = mean(neg_profits_spell[neg_profits == 1], na.rm = TRUE),
+    neg_ebitda = mean(neg_ebitda) * 100,
+    neg_pi = mean(neg_pi, na.rm = TRUE) * 100,
+    neg_ni = mean(neg_ni, na.rm = TRUE) * 100,
+    neg_profits = mean(neg_profits) * 100,
     n_firms = n()
-  )
+  ) 
 
-ggplot(neg_earnings_by_year, aes(x = date, y = pct_negative)) +
+neg_ebitda_plot <- ggplot(neg_earnings_byyear, aes(x = date, y = neg_ebitda)) +
   geom_line(linewidth = 2) +
   geom_point(size = 3) +
   labs(
     title = "",
     x = "Year",
-    y = "Percent of Firms with EBITDA < 0 (%)",
-    caption = paste0("N firms ranges from ", min(neg_earnings_by_year$n_firms),
-                     " to ", max(neg_earnings_by_year$n_firms))
+    y = "Percent of Firms with EBITDA < 0 (%)"
   ) +
   theme_common
 
-ggsave("figures/empirical/pct_negative_earnings_by_year.pdf", width = 8, height = 6)
+ggsave("figures/empirical/pct_negative_earnings_by_year.pdf", neg_ebitda_plot, width = 8, height = 6)
+
+neg_ebitda_spell_plot <- ggplot(neg_earnings_byyear, aes(x = date, y = neg_ebitda_spell)) +
+  geom_line(linewidth = 2, color = "black") +
+  geom_point(size = 3, color = "black") +
+  labs(
+    title = "",
+    x = "Year",
+    y = "Average Negative Spell Length (Years)"
+  ) +
+  theme_common
+
+ggarrange(neg_ebitda_plot, neg_ebitda_spell_plot, ncol = 2, nrow = 1)
+ggsave("figures/empirical/neg_earnings_and_spell_over_time.pdf", width = 16, height = 9)
+ggarrange(neg_ebitda_plot, neg_ebitda_spell_plot, ncol = 1, nrow = 2)
+ggsave("figures/empirical/neg_earnings_and_spell_over_time_slides.pdf", width = 8, height = 12)
+  
+# 2a Robustness to IRS Data ---------------
 
 # compare to IRS data
 irs_corp_returns_post94 <- read.csv("data/clean/irs_corp_returns.csv") %>%
@@ -65,8 +87,8 @@ irs_corps_returns_pre94 <- read.csv("data/clean/irs_corp_returns_pre94.csv") %>%
 irs_corps_returns <- bind_rows(irs_corps_returns_pre94, irs_corp_returns_post94)
 
 ggplot() +
-  geom_line(data = neg_earnings_by_year, aes(x = date, y = pct_negative, color = "EBITDA < 0 (Compustat)"), linewidth = 2) +
-  geom_point(data = neg_earnings_by_year, aes(x = date, y = pct_negative, color = "EBITDA < 0 (Compustat)"), size = 3) +
+  geom_line(data = neg_earnings_byyear, aes(x = date, y = neg_ebitda, color = "EBITDA < 0 (Compustat)"), linewidth = 2) +
+  geom_point(data = neg_earnings_byyear, aes(x = date, y = neg_ebitda, color = "EBITDA < 0 (Compustat)"), size = 3) +
   geom_line(data = irs_corps_returns, aes(x = year, y = perc_neg_earnings, color = "Net Income < 0 (IRS)"), linewidth = 2) +
   geom_point(data = irs_corps_returns, aes(x = year, y = perc_neg_earnings, color = "Net Income < 0 (IRS)"), size = 3) +
   scale_color_manual(values = setNames(palette_2, c("EBITDA < 0 (Compustat)", "Net Income < 0 (IRS)"))) +
@@ -79,28 +101,53 @@ ggplot() +
 
 ggsave("figures/empirical/pct_negative_earnings_compustat_vs_irs.pdf", width = 8, height = 6)
 
-# Overlay EBITDA, Net Income, Pretax Income
+# 2b Robustness to alternative earnings ---------------
 
-neg_earnings_alt <- analysis_data %>%
-  group_by(date) %>%
-  reframe(
-    `EBITDA < 0`        = mean(ebitda < 0, na.rm = TRUE) * 100,
-    `Net Income < 0`    = mean(ni < 0, na.rm = TRUE) * 100,
-    `Pretax Income < 0` = mean(pi < 0, na.rm = TRUE) * 100
+
+neg_earnings_alt <- neg_earnings_byyear %>%
+  select(date, neg_ebitda, neg_pi, neg_ni, neg_profits) %>%
+  rename(
+    "EBITDA < 0" = neg_ebitda,
+    "Pretax Income < 0" = neg_pi,
+    "Net Income < 0" = neg_ni,
+    "Profits < 0" = neg_profits
   ) %>%
-  pivot_longer(cols = -date, names_to = "measure", values_to = "pct_negative")
+  pivot_longer(cols = -date, names_to = "measure", values_to = "pct_negative") 
 
-ggplot(neg_earnings_alt, aes(x = date, y = pct_negative, color = measure)) +
+neg_spells_alt <- neg_earnings_byyear %>%
+  select(date, neg_ebitda_spell, neg_pi_spell, neg_ni_spell, neg_profits_spell) %>%
+  rename(
+    "EBITDA < 0" = neg_ebitda_spell,
+    "Pretax Income < 0" = neg_pi_spell,
+    "Net Income < 0" = neg_ni_spell,
+    "Profits < 0" = neg_profits_spell
+  ) %>%
+  pivot_longer(cols = -date, names_to = "measure", values_to = "mean_neg_spell")
+
+neg_earnings_plot <- ggplot(neg_earnings_alt, aes(x = date, y = pct_negative, color = measure)) +
   geom_line(linewidth = 2) +
   geom_point(size = 3) +
-  scale_color_manual(values = setNames(palette_3,
-    c("EBITDA < 0", "Net Income < 0", "Pretax Income < 0"))) +
+  scale_color_manual(values = setNames(palette_4,
+    c("EBITDA < 0", "Net Income < 0", "Pretax Income < 0", "Profits < 0"))) +
   labs(x = "Year", y = "% Firms with Negative Earnings", color = "") +
   theme_common
 
-ggsave("figures/empirical/pct_negative_earnings_alt_measures.pdf", width = 8, height = 6)
+neg_spells_plot <- ggplot(neg_spells_alt, aes(x = date, y = mean_neg_spell, color = measure)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = setNames(palette_4,
+    c("EBITDA < 0", "Net Income < 0", "Pretax Income < 0", "Profits < 0"))) +
+  labs(x = "Year", y = "Average Negative Earnings Spell Length (Years)", color = "") +
+  theme_common
 
-# 2b (mean/median). Average and median EBITDA/Sales over time ----------------
+ggarrange(neg_earnings_plot, neg_spells_plot, ncol = 2, nrow = 1, common.legend = TRUE, legend = "bottom")
+ggsave("figures/empirical/negative_earnings_alt_measures.pdf", width = 16, height = 9)
+
+ggarrange(neg_earnings_plot, neg_spells_plot, ncol = 1, nrow = 2, common.legend = TRUE, legend = "bottom")
+ggsave("figures/empirical/negative_earnings_alt_measures_slides.pdf", width = 8, height = 12)
+
+
+# 2c (mean/median). Average and median EBITDA/Sales over time ----------------
 
 ebitda_stats_by_year <- analysis_data %>%
   group_by(date) %>%
@@ -118,91 +165,6 @@ ggplot(ebitda_stats_by_year, aes(x = date, y = log_ebitda, color = stat)) +
   theme_common
 
 ggsave("figures/empirical/mean_median_log_ebitda_by_year.pdf", width = 8, height = 6)
-
-# 2c Plot average neg_spell among negative earning firms over time ----
-
-neg_spell_by_year <- analysis_data %>%
-  filter(neg_ebitda == 1) %>%
-  group_by(date) %>%
-  reframe(
-    mean_neg_spell = mean(neg_spell, na.rm = TRUE),
-    n_firms = n()
-  )
-
-ggplot(neg_spell_by_year, aes(x = date, y = mean_neg_spell)) +
-  geom_line(linewidth = 2, color = "black") +
-  geom_point(size = 3, color = "black") +
-  labs(
-    title = "",
-    x = "Year",
-    y = "Average Negative Earnings Spell Length (Years)",
-    caption = paste0("N negative earning firms ranges from ", min(neg_spell_by_year$n_firms),
-                     " to ", max(neg_spell_by_year$n_firms))
-  ) +
-  theme_common
-
-ggsave("figures/empirical/neg_spell_over_time.pdf", width = 8, height = 6)
-
-# 2 panel figure with percent negative and average neg spell over time
-neg_earnings_panel <- ggplot(neg_earnings_by_year, aes(x = date, y = pct_negative)) +
-  geom_line(linewidth = 2) +
-  geom_point(size = 3) +
-  labs(
-    title = "",
-    x = "Year",
-    y = "Percent of Firms with EBITDA < 0 (%)",
-    # caption = paste0("N firms ranges from ", min(neg_earnings_by_year$n_firms),
-                    #  " to ", max(neg_earnings_by_year$n_firms))
-  ) +
-  theme_common
-
-neg_spell_panel <- ggplot(neg_spell_by_year, aes(x = date, y = mean_neg_spell)) +
-  geom_line(linewidth = 2, color = "black") +
-  geom_point(size = 3, color = "black") +
-  labs(
-    title = "",
-    x = "Year",
-    y = "Average Negative Earnings Spell Length (Years)",
-    # caption = paste0("N negative earning firms ranges from ", min(neg_spell_by_year$n_firms),
-                    #  " to ", max(neg_spell_by_year$n_firms))
-  ) +
-  theme_common
-
-ggarrange(neg_earnings_panel, neg_spell_panel, ncol = 2, nrow = 1)
-ggsave("figures/empirical/neg_earnings_and_spell_over_time.pdf", width = 16, height = 9)
-
-# 2d Plots using neg_profits (expensing capital) ----
-# profits = sale - cogs - sga - capx (built in 3_build_analysis_data.R)
-
-neg_profits_by_year <- analysis_data %>%
-  group_by(date) %>%
-  reframe(
-    pct_negative = mean(neg_profits, na.rm = TRUE) * 100,
-    n_firms = n()
-  )
-
-neg_profits_spell_by_year <- analysis_data %>%
-  filter(neg_profits == 1) %>%
-  group_by(date) %>%
-  reframe(
-    mean_neg_spell = mean(neg_profits_spell, na.rm = TRUE),
-    n_firms = n()
-  )
-
-neg_profits_panel <- ggplot(neg_profits_by_year, aes(x = date, y = pct_negative)) +
-  geom_line(linewidth = 2) +
-  geom_point(size = 3) +
-  labs(x = "Year", y = "Percent of Firms with Profits < 0 (%)") +
-  theme_common
-
-neg_profits_spell_panel <- ggplot(neg_profits_spell_by_year, aes(x = date, y = mean_neg_spell)) +
-  geom_line(linewidth = 2, color = "black") +
-  geom_point(size = 3, color = "black") +
-  labs(x = "Year", y = "Average Negative Profits Spell Length (Years)") +
-  theme_common
-
-ggarrange(neg_profits_panel, neg_profits_spell_panel, ncol = 2, nrow = 1)
-ggsave("figures/empirical/neg_profits_and_spell_over_time.pdf", width = 16, height = 9)
 
 # 3a. Plot log change in SD of sales over time ------------------------------------
 

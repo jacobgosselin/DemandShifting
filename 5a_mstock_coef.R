@@ -88,9 +88,9 @@ ggplot(coef_m, aes(x = year, y = coef)) +
 ggsave("figures/empirical/sales_elasticity_m_by_year.pdf", width = 8, height = 6)
 
 # Save coefficients ----
-write.csv(coef_m, file.path(REPO_DIR, "6_ComputationalEx", "sales_elasticity_m_by_year.csv"), row.names = FALSE)
+# write.csv(coef_m, file.path(REPO_DIR, "6_ComputationalEx", "sales_elasticity_m_by_year.csv"), row.names = FALSE)
 
 cat("4b_mstock_coef.R complete.\n")
 cat("Years in coefficient table:", nrow(coef_m), "\n")
 cat("Saved: figures/sales_elasticity_m_by_year.pdf\n")
-cat("Saved: data/clean/sales_elasticity_m_by_year.csv\n")
+# cat("Saved: data/clean/sales_elasticity_m_by_year.csv\n")

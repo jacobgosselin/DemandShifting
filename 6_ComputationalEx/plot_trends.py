@@ -27,6 +27,7 @@ from integrate_dist import (
     avg_firm_earnings_path, cohort_neg_path,
     avg_neg_spell_cohort,
 )
+from prod_fncts import *
 
 # -----------------------------------------------------------------------------
 # Paths
@@ -85,7 +86,9 @@ sd_earnings_raw, sd_sales_raw = [], []
 med_adv_all, med_inv_all, med_cogs_all = [], [], []
 med_adv_neg, med_inv_neg, med_cogs_neg = [], [], []
 med_earn_vals, mean_earn_vals = [], []
-c_vals        = []
+c_vals, i_vals, a_vals        = [], [], []
+vk_vals = []
+W_vals = []
 m_bnd_vals    = []
 k_bnd_vals    = []
 agg_k_vals    = []
@@ -95,6 +98,7 @@ La_vals, Lk_vals, Ls_vals = [], [], []
 for yr in years:
     eqm  = eqms[yr]
     dist = eqm["Dist"]
+    p = eqm["params"]
 
     pct_neg_vals.append(pct_negative(m_grid, k_grid, z_grid, eqm))
     pct_neg_income_vals.append(pct_negative_income(m_grid, k_grid, z_grid, eqm))
@@ -121,6 +125,11 @@ for yr in years:
     agg_k_vals.append(agg_capital_stock(m_grid, k_grid, z_grid, eqm))
     sales_wtd_z_vals.append(sales_wtd_productivity(m_grid, k_grid, z_grid, eqm))
     La, Lk, Ls = agg_labor_shares(m_grid, k_grid, z_grid, eqm)
+    W = eqm["W"]
+    W_vals.append(W)
+    vk = W * L_k(agg_capital_stock(m_grid, k_grid, z_grid, eqm), p['alpha_k'])
+    vk_vals.append(vk)
+    i_vals.append(W * Lk); a_vals.append(W * La)
     La_vals.append(La); Lk_vals.append(Lk); Ls_vals.append(Ls)
     print(
         f"  {yr}: pct_neg={pct_neg_vals[-1]:.2f}%  "
@@ -156,147 +165,6 @@ def _save(fname, fig=None, close=True):
 
 print(f"\nGenerating figures → {FIGURES_DIR}/")
 
-# Figure 1: Percent negative earnings vs year
-plt.figure(figsize=(10, 10))
-plt.plot(years, pct_neg_vals, "o-", linewidth=3, markersize=10)
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Percent of Firms with Negative Earnings", fontsize=18)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("pct_negative_vs_phi.pdf")
-
-# Figure 2: Median ratios — all firms
-plt.figure(figsize=(10, 10))
-plt.plot(years, med_adv_all,  "o-", linewidth=3, markersize=10, label="Adv/Revenue")
-plt.plot(years, med_inv_all,  "s-", linewidth=3, markersize=10, label="Inv/Revenue")
-plt.plot(years, med_cogs_all, "^-", linewidth=3, markersize=10, label="COGS/Revenue")
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Median Ratio", fontsize=18)
-plt.legend(fontsize=16)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("median_ratios_all_vs_phi.pdf")
-
-# Figure 3: Median ratios — negative-earnings firms
-plt.figure(figsize=(10, 10))
-plt.plot(years, med_adv_neg,  "o-", linewidth=3, markersize=10, label="Adv/Revenue")
-plt.plot(years, med_inv_neg,  "s-", linewidth=3, markersize=10, label="Inv/Revenue")
-plt.plot(years, med_cogs_neg, "^-", linewidth=3, markersize=10, label="COGS/Revenue")
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Median Ratio (Negative Earnings Firms)", fontsize=18)
-plt.legend(fontsize=16)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("median_ratios_neg_vs_phi.pdf")
-
-# Figure 4: Std. dev. of earnings (log change from base year)
-plt.figure(figsize=(10, 10))
-plt.plot(years, sd_earnings_vals, "o-", linewidth=3, markersize=10)
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Std. Deviation of Earnings (Log Change from 1980)", fontsize=18)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("sd_earnings_vs_phi.pdf")
-
-# Figure 5: Std. dev. of sales (log change from base year)
-plt.figure(figsize=(10, 10))
-plt.plot(years, sd_sales_vals, "o-", linewidth=3, markersize=10)
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Std. Deviation of Sales (Log Change from 1980)", fontsize=18)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("sd_sales_vs_phi.pdf")
-
-# Figure 6: Aggregate consumption
-plt.figure(figsize=(10, 10))
-plt.plot(years, c_vals, "o-", linewidth=3, markersize=10)
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Aggregate Consumption C", fontsize=18)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("aggregate_consumption_vs_phi.pdf")
-
-# Figure 7: Median and mean earnings (scaled by aggregate revenue)
-plt.figure(figsize=(10, 10))
-plt.plot(years, med_earn_vals, "o-", linewidth=3, markersize=10, label="Median Earnings")
-plt.plot(years, mean_earn_vals, "s-", linewidth=3, markersize=10, label="Mean Earnings")
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Earnings", fontsize=18)
-plt.legend(fontsize=16)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("earnings_median_mean_vs_phi.pdf")
-
-# Figure 8: Aggregate capital stock
-plt.figure(figsize=(10, 10))
-plt.plot(years, agg_k_vals, "o-", linewidth=3, markersize=10)
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Aggregate Capital Stock", fontsize=18)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("agg_capital_stock_vs_phi.pdf")
-
-# Figure 9: Sales-weighted productivity
-plt.figure(figsize=(10, 10))
-plt.plot(years, sales_wtd_z_vals, "o-", linewidth=3, markersize=10)
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Sales-Weighted Productivity", fontsize=18)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("sales_wtd_productivity_vs_phi.pdf")
-
-# Figure 10: Aggregate labor allocations
-plt.figure(figsize=(10, 10))
-plt.plot(years, La_vals, "o-", linewidth=3, markersize=10, label=r"$L_a$ (advertising)")
-plt.plot(years, Lk_vals, "s-", linewidth=3, markersize=10, label=r"$L_k$ (capital inv.)")
-plt.plot(years, Ls_vals, "^-", linewidth=3, markersize=10, label=r"$L_s$ (goods prod.)")
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("Aggregate Labor Allocation", fontsize=18)
-plt.legend(fontsize=16)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("agg_labor_shares_vs_phi.pdf")
-# Print La, Lk, Ls values for reference
-print("\nAggregate labor allocations by year:")
-for yr, La, Lk, Ls in zip(years, La_vals, Lk_vals, Ls_vals):
-    print(f"  {yr}: La={La:.4f}, Lk={Lk:.4f}, Ls={Ls:.4f}")
-
-# Figure 11: Average firm earnings path — phi_0 vs phi_T
-eqm_phi0 = eqms[years[0]]
-eqm_phiT = eqms[years[-1]]
-path_phi0 = avg_firm_earnings_path(eqm_phi0, z_grid, T=50)
-path_phiT = avg_firm_earnings_path(eqm_phiT, z_grid, T=50)
-periods = np.arange(1, 51)
-plt.figure(figsize=(10, 10))
-plt.plot(periods, path_phi0, "o-", linewidth=3, markersize=10, label=f"{years[0]} ($\\phi_0$)")
-plt.plot(periods, path_phiT, "s-", linewidth=3, markersize=10, label=f"{years[-1]} ($\\phi_T$)")
-plt.axhline(0, color="black", linewidth=1, linestyle="--")
-plt.xlabel("Period", fontsize=18)
-plt.ylabel("Earnings (Median Productivity Entrant)", fontsize=18)
-plt.legend(fontsize=16)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-_save("avg_firm_earnings_path_phi0_vs_phiT.pdf")
-
-# Figure 12: Cohort pct negative earnings by period — phi_0 vs phi_T
-print("\nComputing cohort earnings paths (this may take ~15 sec)...")
-cneg_phi0 = cohort_neg_path(eqm_phi0, z_grid, Pi, T=10)
-cneg_phiT = cohort_neg_path(eqm_phiT, z_grid, Pi, T=10)
-periods = np.arange(1, 11)
-print(f"  Expected neg-earnings periods (phi_0): {np.sum(cneg_phi0)/100:.2f}")
-print(f"  Expected neg-earnings periods (phi_T): {np.sum(cneg_phiT)/100:.2f}")
-plt.figure(figsize=(10, 10))
-plt.plot(periods, cneg_phi0, "o-", linewidth=3, markersize=10, label=f"{years[0]} ($\\phi_0$)")
-plt.plot(periods, cneg_phiT, "s-", linewidth=3, markersize=10, label=f"{years[-1]} ($\\phi_T$)")
-plt.xlabel("Period", fontsize=18)
-plt.ylabel("% of Entrant Cohort with Negative Earnings", fontsize=18)
-plt.legend(fontsize=16)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-# x-axis ticks only at integers
-plt.xticks(periods)
-_save("cohort_pct_neg_by_period_phi0_vs_phiT.pdf")
-print(cneg_phiT)
 
 # Figure A: Two-panel — phi by year + pct_neg by year
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
@@ -434,4 +302,101 @@ plt.tick_params(axis="both", which="major", labelsize=16)
 plt.grid(True, alpha=0.3)
 _save("pct_neg_ebitda_vs_income_by_year.pdf")
 
-print("\nDone.")
+####
+# Aggregate Variable Paths 
+####
+
+# Figure 1a: GDP proxy (C + I + A)
+gdp = np.array(c_vals) + np.array(i_vals) + np.array(a_vals)
+plt.figure(figsize=(10, 10))
+plt.plot(years, gdp/gdp[0] - 1, "o-", linewidth=3, markersize=10)
+plt.xlabel("Year", fontsize=18)
+plt.ylabel("GDP Proxy (C + I + A)", fontsize=18)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+_save("gdp_proxy_vs_phi.pdf")
+
+# Figure 1b: C vs. I vs. A
+plt.figure(figsize=(10, 10))
+plt.plot(years, c_vals/c_vals[0] - 1, "o-", linewidth=3, markersize=10, label=r"$\int_0^1 P_i C_i di$ (C)")
+plt.plot(years, i_vals/i_vals[0] - 1, "s-", linewidth=3, markersize=10, label=r"$\int_0^1 W L_i^k di$ (I)")
+plt.plot(years, a_vals/a_vals[0] - 1, "^-", linewidth=3, markersize=10, label=r"$\int_0^1 W L_i^a di$ (A)")
+plt.xlabel("Year", fontsize=18)
+plt.ylabel("", fontsize=18)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+plt.legend(fontsize=16)
+_save("C_I_A_vs_phi.pdf")
+
+# Figure 1c: Recover TFP
+cost_shares_k = np.array(vk_vals) / np.array(c_vals)
+cost_shares_k_avg = (cost_shares_k[:-1] + cost_shares_k[1:]) / 2
+cost_shares_l = np.array(Ls_vals) * np.array(W_vals) / np.array(c_vals)
+cost_shares_l_avg = (cost_shares_l[:-1] + cost_shares_l[1:]) / 2
+agg_k_arr = np.array(agg_k_vals)
+agg_k_pct_change = np.diff(agg_k_arr) / agg_k_arr[:-1]
+Ls_arr = np.array(Ls_vals)
+Ls_pct_change = np.diff(Ls_arr) / Ls_arr[:-1]
+c_arr = np.array(c_vals)
+c_pct_change = np.diff(c_arr) / c_arr[:-1]
+tfp_annual_growth = c_pct_change - cost_shares_k_avg * agg_k_pct_change - cost_shares_l_avg * Ls_pct_change
+plt.figure(figsize=(10, 10))
+# do a bar plot with bars colored by positive vs negative TFP growth
+bar_colors = ["green" if x >= 0 else "red" for x in tfp_annual_growth]
+plt.bar(years[1:], tfp_annual_growth, color=bar_colors, alpha=0.7)
+plt.xlabel("Year", fontsize=18)
+plt.ylabel("TFP Effect of Scale Elasticity", fontsize=18)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+_save("tfp_vs_phi.pdf")
+
+# Figure 2: Aggregate capital stock
+plt.figure(figsize=(10, 10))
+plt.plot(years, agg_k_vals, "o-", linewidth=3, markersize=10)
+plt.xlabel("Year", fontsize=18)
+plt.ylabel("Aggregate Capital Stock", fontsize=18)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+_save("agg_capital_stock_vs_phi.pdf")
+
+# Figure 3: Sales-weighted productivity
+plt.figure(figsize=(10, 10))
+plt.plot(years, sales_wtd_z_vals, "o-", linewidth=3, markersize=10)
+plt.xlabel("Year", fontsize=18)
+plt.ylabel("Sales-Weighted Productivity", fontsize=18)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+_save("sales_wtd_productivity_vs_phi.pdf")
+
+# Figure 4: Aggregate labor allocations
+plt.figure(figsize=(10, 10))
+plt.plot(years, La_vals, "o-", linewidth=3, markersize=10, label=r"$L_a$ (advertising)")
+plt.plot(years, Lk_vals, "s-", linewidth=3, markersize=10, label=r"$L_k$ (capital inv.)")
+plt.plot(years, Ls_vals, "^-", linewidth=3, markersize=10, label=r"$L_s$ (goods prod.)")
+plt.xlabel("Year", fontsize=18)
+plt.ylabel("Aggregate Labor Allocation", fontsize=18)
+plt.legend(fontsize=16)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+_save("agg_labor_shares_vs_phi.pdf")
+# Print La, Lk, Ls values for reference
+print("\nAggregate labor allocations by year:")
+for yr, La, Lk, Ls in zip(years, La_vals, Lk_vals, Ls_vals):
+    print(f"  {yr}: La={La:.4f}, Lk={Lk:.4f}, Ls={Ls:.4f}")
+
+# Figure 5: Average firm earnings path — phi_0 vs phi_T
+eqm_phi0 = eqms[years[0]]
+eqm_phiT = eqms[years[-1]]
+path_phi0 = avg_firm_earnings_path(eqm_phi0, z_grid, T=50)
+path_phiT = avg_firm_earnings_path(eqm_phiT, z_grid, T=50)
+periods = np.arange(1, 51)
+plt.figure(figsize=(10, 10))
+plt.plot(periods, path_phi0, "o-", linewidth=3, markersize=10, label=f"{years[0]} ($\\phi_0$)")
+plt.plot(periods, path_phiT, "s-", linewidth=3, markersize=10, label=f"{years[-1]} ($\\phi_T$)")
+plt.axhline(0, color="black", linewidth=1, linestyle="--")
+plt.xlabel("Period", fontsize=18)
+plt.ylabel("Earnings (Median Productivity Entrant)", fontsize=18)
+plt.legend(fontsize=16)
+plt.tick_params(axis="both", which="major", labelsize=16)
+plt.grid(True, alpha=0.3)
+_save("avg_firm_earnings_path_phi0_vs_phiT.pdf")

@@ -169,19 +169,20 @@ analysis_data <- analysis_data %>%
   group_by(gvkey) %>%
   arrange(gvkey, date) %>%
   mutate(
+    # generate spells and cap since only have data going back to 1961
     neg_spell = sequence(rle(neg_ebitda)$lengths) * neg_ebitda,
-    neg_spell = ifelse(neg_spell > 10, 10, neg_spell),
+    neg_spell = ifelse(neg_spell > 19, 19, neg_spell), 
     neg_pi_spell = sequence(rle(neg_pi)$lengths) * neg_pi,
-    neg_pi_spell = ifelse(neg_pi_spell > 10, 10, neg_pi_spell),
+    neg_pi_spell = ifelse(neg_pi_spell > 19, 19, neg_pi_spell),
     neg_ni_spell = sequence(rle(neg_ni)$lengths) * neg_ni,
-    neg_ni_spell = ifelse(neg_ni_spell > 10, 10, neg_ni_spell),
+    neg_ni_spell = ifelse(neg_ni_spell > 19, 19, neg_ni_spell),
     neg_profits_spell = sequence(rle(neg_profits)$lengths) * neg_profits,
-    neg_profits_spell = ifelse(neg_profits_spell > 10, 10, neg_profits_spell)
+    neg_profits_spell = ifelse(neg_profits_spell > 19, 19, neg_profits_spell)
   ) %>%
   ungroup() %>%
   left_join(cust_capital, by = "naics_3digit") %>%
   # Don't filter date until AFTER computing m_stock and neg_spell, which rely on full firm history
-  filter(date >= 1980 & date < 2020) 
+  filter(date >= 1980 & date < 2020)
 
 # Save --------------------------------------------------------------------
 

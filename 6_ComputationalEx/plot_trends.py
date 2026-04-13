@@ -16,8 +16,12 @@ Usage:
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import pandas as pd
 import os
+
+palette_2 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 2)]
+palette_3 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 3)]
 
 from integrate_dist import (
     pct_negative, pct_negative_income, est_dist, est_sd,
@@ -168,12 +172,12 @@ print(f"\nGenerating figures → {FIGURES_DIR}/")
 
 # Figure A: Two-panel — phi by year + pct_neg by year
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-ax1.plot(years, phi_vals, "o-", linewidth=3, markersize=10)
+ax1.plot(years, phi_vals, "o-", linewidth=3, markersize=10, color="black")
 ax1.set_xlabel("Year", fontsize=18)
 ax1.set_ylabel(r"$\phi$ (Sales Elasticity of Customer Capital)", fontsize=18)
 ax1.tick_params(axis="both", which="major", labelsize=16)
 ax1.grid(True, alpha=0.3)
-ax2.plot(years, pct_neg_vals, "o-", linewidth=3, markersize=10)
+ax2.plot(years, pct_neg_vals, "o-", linewidth=3, markersize=10, color="black")
 ax2.set_xlabel("Year", fontsize=18)
 ax2.set_ylabel("Percent of Firms with EBITDA < 0 (%)", fontsize=18)
 ax2.tick_params(axis="both", which="major", labelsize=16)
@@ -183,13 +187,13 @@ _save("phi_and_pct_neg_by_year.pdf")
 
 # Figure B: Two-panel — empirical vs. model avg neg spell/periods by year
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-ax1.plot(years, emp_df["avg_neg_spell"], "o-", linewidth=3, markersize=10)
+ax1.plot(years, emp_df["avg_neg_spell"], "o-", linewidth=3, markersize=10, color="black")
 ax1.set_xlabel("Year", fontsize=18)
 ax1.set_ylabel("Avg. Neg. Earnings Spell Length (Data)", fontsize=18)
 ax1.tick_params(axis="both", which="major", labelsize=16)
 ax1.set_ylim(0, 5)
 ax1.grid(True, alpha=0.3)
-ax2.plot(years, avg_neg_vals, "o-", linewidth=3, markersize=10)
+ax2.plot(years, avg_neg_vals, "o-", linewidth=3, markersize=10, color="black")
 ax2.set_xlabel("Year", fontsize=18)
 ax2.set_ylabel("Avg. Neg. Earnings Spell Length (Model)", fontsize=18)
 ax2.set_ylim(0, 5)
@@ -210,18 +214,18 @@ _save("avg_neg_periods_by_year.pdf", fig, close=True)
 
 # Figure C: Two-panel — empirical vs model cost ratios
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-ax1.plot(years, emp_df["med_sga_sale"],  "o-", linewidth=3, markersize=8, label="SG&A/Rev")
-ax1.plot(years, emp_df["med_cogs_sale"], "s-", linewidth=3, markersize=8, label="COGS/Rev")
-ax1.plot(years, emp_df["med_capx_sale"], "^-", linewidth=3, markersize=8, label="CapEx/Rev")
+ax1.plot(years, emp_df["med_sga_sale"],  "o-", linewidth=3, markersize=8, label="SG&A/Rev",  color=palette_3[0])
+ax1.plot(years, emp_df["med_cogs_sale"], "s-", linewidth=3, markersize=8, label="COGS/Rev",  color=palette_3[1])
+ax1.plot(years, emp_df["med_capx_sale"], "^-", linewidth=3, markersize=8, label="CapEx/Rev", color=palette_3[2])
 ax1.set_xlabel("Year", fontsize=18)
 ax1.set_ylabel("Median Ratio (Data)", fontsize=18)
 ax1.legend(fontsize=14)
 ax1.tick_params(axis="both", which="major", labelsize=16)
 ax1.grid(True, alpha=0.3)
 ax1.set_ylim(0, 1)
-ax2.plot(years, med_adv_all,  "o-", linewidth=3, markersize=8, label="Adv/Rev")
-ax2.plot(years, med_cogs_all, "s-", linewidth=3, markersize=8, label="COGS/Rev")
-ax2.plot(years, med_inv_all,  "^-", linewidth=3, markersize=8, label="Inv/Rev")
+ax2.plot(years, med_adv_all,  "o-", linewidth=3, markersize=8, label="Adv/Rev",  color=palette_3[0])
+ax2.plot(years, med_cogs_all, "s-", linewidth=3, markersize=8, label="COGS/Rev", color=palette_3[1])
+ax2.plot(years, med_inv_all,  "^-", linewidth=3, markersize=8, label="Inv/Rev",  color=palette_3[2])
 ax2.set_xlabel("Year", fontsize=18)
 ax2.set_ylabel("Median Ratio (Model)", fontsize=18)
 ax2.legend(fontsize=14)
@@ -243,12 +247,12 @@ _save("cost_ratios_data_vs_model.pdf", fig, close=True)
 
 # Figure D: Two-panel — empirical vs model log SD earnings
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 9))
-ax1.plot(years, emp_df["log_sd_earnings_norm"], "o-", linewidth=3, markersize=10)
+ax1.plot(years, emp_df["log_sd_earnings_norm"], "o-", linewidth=3, markersize=10, color="black")
 ax1.set_xlabel("Year", fontsize=18)
 ax1.set_ylabel("Log SD Earnings (Data, Change from 1980)", fontsize=18)
 ax1.tick_params(axis="both", which="major", labelsize=16)
 ax1.grid(True, alpha=0.3)
-ax2.plot(years, sd_earnings_vals, "o-", linewidth=3, markersize=10)
+ax2.plot(years, sd_earnings_vals, "o-", linewidth=3, markersize=10, color="black")
 ax2.set_xlabel("Year", fontsize=18)
 ax2.set_ylabel("Log SD Earnings (Model, Change from 1980)", fontsize=18)
 ax2.tick_params(axis="both", which="major", labelsize=16)
@@ -268,12 +272,12 @@ _save("sd_earnings_data_vs_model.pdf", fig, close=True)
 
 # Figure E: Two-panel — empirical vs model log SD sales
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-ax1.plot(years, emp_df["log_sd_sales_norm"], "o-", linewidth=3, markersize=10)
+ax1.plot(years, emp_df["log_sd_sales_norm"], "o-", linewidth=3, markersize=10, color="black")
 ax1.set_xlabel("Year", fontsize=18)
 ax1.set_ylabel("Log SD Sales (Data, Change from 1980)", fontsize=18)
 ax1.tick_params(axis="both", which="major", labelsize=16)
 ax1.grid(True, alpha=0.3)
-ax2.plot(years, sd_sales_vals, "o-", linewidth=3, markersize=10)
+ax2.plot(years, sd_sales_vals, "o-", linewidth=3, markersize=10, color="black")
 ax2.set_xlabel("Year", fontsize=18)
 ax2.set_ylabel("Log SD Sales (Model, Change from 1980)", fontsize=18)
 ax2.tick_params(axis="both", which="major", labelsize=16)
@@ -293,8 +297,8 @@ _save("sd_sales_data_vs_model.pdf", fig, close=True)
 
 # Figure F: Overlay — % negative EBITDA vs % negative income (model)
 plt.figure(figsize=(10, 10))
-plt.plot(years, pct_neg_vals,        "o-", linewidth=3, markersize=10, label="% Negative EBITDA")
-plt.plot(years, pct_neg_income_vals, "s-", linewidth=3, markersize=10, label="% Negative Income (net of dep. cost)")
+plt.plot(years, pct_neg_vals,        "o-", linewidth=3, markersize=10, label="% Negative EBITDA",                  color=palette_2[0])
+plt.plot(years, pct_neg_income_vals, "s-", linewidth=3, markersize=10, label="% Negative Income (net of dep. cost)", color=palette_2[1])
 plt.xlabel("Year", fontsize=18)
 plt.ylabel("Percent of Firms (%)", fontsize=18)
 plt.legend(fontsize=16)
@@ -309,7 +313,7 @@ _save("pct_neg_ebitda_vs_income_by_year.pdf")
 # Figure 1a: GDP proxy (C + I + A)
 gdp = np.array(c_vals) + np.array(i_vals) + np.array(a_vals)
 plt.figure(figsize=(10, 10))
-plt.plot(years, gdp/gdp[0] - 1, "o-", linewidth=3, markersize=10)
+plt.plot(years, gdp/gdp[0] - 1, "o-", linewidth=3, markersize=10, color="black")
 plt.xlabel("Year", fontsize=18)
 plt.ylabel("GDP Proxy (C + I + A)", fontsize=18)
 plt.tick_params(axis="both", which="major", labelsize=16)
@@ -318,9 +322,9 @@ _save("gdp_proxy_vs_phi.pdf")
 
 # Figure 1b: C vs. I vs. A
 plt.figure(figsize=(10, 10))
-plt.plot(years, c_vals/c_vals[0] - 1, "o-", linewidth=3, markersize=10, label=r"$\int_0^1 P_i C_i di$ (C)")
-plt.plot(years, i_vals/i_vals[0] - 1, "s-", linewidth=3, markersize=10, label=r"$\int_0^1 W L_i^k di$ (I)")
-plt.plot(years, a_vals/a_vals[0] - 1, "^-", linewidth=3, markersize=10, label=r"$\int_0^1 W L_i^a di$ (A)")
+plt.plot(years, c_vals/c_vals[0] - 1, "o-", linewidth=3, markersize=10, label=r"$\int_0^1 P_i C_i di$ (C)", color=palette_3[0])
+plt.plot(years, i_vals/i_vals[0] - 1, "s-", linewidth=3, markersize=10, label=r"$\int_0^1 W L_i^k di$ (I)", color=palette_3[1])
+plt.plot(years, a_vals/a_vals[0] - 1, "^-", linewidth=3, markersize=10, label=r"$\int_0^1 W L_i^a di$ (A)", color=palette_3[2])
 plt.xlabel("Year", fontsize=18)
 plt.ylabel("", fontsize=18)
 plt.tick_params(axis="both", which="major", labelsize=16)
@@ -352,7 +356,7 @@ _save("tfp_vs_phi.pdf")
 
 # Figure 2: Aggregate capital stock
 plt.figure(figsize=(10, 10))
-plt.plot(years, agg_k_vals, "o-", linewidth=3, markersize=10)
+plt.plot(years, agg_k_vals, "o-", linewidth=3, markersize=10, color="black")
 plt.xlabel("Year", fontsize=18)
 plt.ylabel("Aggregate Capital Stock", fontsize=18)
 plt.tick_params(axis="both", which="major", labelsize=16)
@@ -361,7 +365,7 @@ _save("agg_capital_stock_vs_phi.pdf")
 
 # Figure 3: Sales-weighted productivity
 plt.figure(figsize=(10, 10))
-plt.plot(years, sales_wtd_z_vals, "o-", linewidth=3, markersize=10)
+plt.plot(years, sales_wtd_z_vals, "o-", linewidth=3, markersize=10, color="black")
 plt.xlabel("Year", fontsize=18)
 plt.ylabel("Sales-Weighted Productivity", fontsize=18)
 plt.tick_params(axis="both", which="major", labelsize=16)
@@ -370,9 +374,9 @@ _save("sales_wtd_productivity_vs_phi.pdf")
 
 # Figure 4: Aggregate labor allocations
 plt.figure(figsize=(10, 10))
-plt.plot(years, La_vals, "o-", linewidth=3, markersize=10, label=r"$L_a$ (advertising)")
-plt.plot(years, Lk_vals, "s-", linewidth=3, markersize=10, label=r"$L_k$ (capital inv.)")
-plt.plot(years, Ls_vals, "^-", linewidth=3, markersize=10, label=r"$L_s$ (goods prod.)")
+plt.plot(years, La_vals, "o-", linewidth=3, markersize=10, label=r"$L_a$ (advertising)", color=palette_3[0])
+plt.plot(years, Lk_vals, "s-", linewidth=3, markersize=10, label=r"$L_k$ (capital inv.)", color=palette_3[1])
+plt.plot(years, Ls_vals, "^-", linewidth=3, markersize=10, label=r"$L_s$ (goods prod.)", color=palette_3[2])
 plt.xlabel("Year", fontsize=18)
 plt.ylabel("Aggregate Labor Allocation", fontsize=18)
 plt.legend(fontsize=16)
@@ -391,8 +395,8 @@ path_phi0 = avg_firm_earnings_path(eqm_phi0, z_grid, T=50)
 path_phiT = avg_firm_earnings_path(eqm_phiT, z_grid, T=50)
 periods = np.arange(1, 51)
 plt.figure(figsize=(10, 10))
-plt.plot(periods, path_phi0, "o-", linewidth=3, markersize=10, label=f"{years[0]} ($\\phi_0$)")
-plt.plot(periods, path_phiT, "s-", linewidth=3, markersize=10, label=f"{years[-1]} ($\\phi_T$)")
+plt.plot(periods, path_phi0, "o-", linewidth=3, markersize=10, label=f"{years[0]} ($\\phi_0$)", color=palette_2[0])
+plt.plot(periods, path_phiT, "s-", linewidth=3, markersize=10, label=f"{years[-1]} ($\\phi_T$)", color=palette_2[1])
 plt.axhline(0, color="black", linewidth=1, linestyle="--")
 plt.xlabel("Period", fontsize=18)
 plt.ylabel("Earnings (Median Productivity Entrant)", fontsize=18)
@@ -400,3 +404,26 @@ plt.legend(fontsize=16)
 plt.tick_params(axis="both", which="major", labelsize=16)
 plt.grid(True, alpha=0.3)
 _save("avg_firm_earnings_path_phi0_vs_phiT.pdf")
+
+# -----------------------------------------------------------------------------
+# Paper Stats
+# -----------------------------------------------------------------------------
+
+PAPER_STATS_PATH = os.path.join(MAIN_DIR, "paper", "paper_stats.csv")
+paper_stats = pd.read_csv(PAPER_STATS_PATH)
+
+stats_model = {
+    "neg_spell_1980_model":         round(avg_neg_vals[years.index(1980)], 2),
+    "neg_spell_2019_model":         round(avg_neg_vals[years.index(2019)], 2),
+    "sd_earnings_percchange_model": round((sd_earnings_arr[-1] - sd_earnings_arr[0]) / abs(sd_earnings_arr[0]) * 100, 2),
+    "sd_sales_percchange_model":    round((sd_sales_arr[-1] - sd_sales_arr[0]) / abs(sd_sales_arr[0]) * 100, 2),
+    "adv_ratio_1980_model":         round(med_adv_all[years.index(1980)], 2),
+    "adv_ratio_2019_model":         round(med_adv_all[years.index(2019)], 2),
+    "inv_ratio_change_model":       round((med_inv_all[-1] - med_inv_all[0]) / abs(med_inv_all[0]) * 100, 2),
+}
+
+for key, val in stats_model.items():
+    paper_stats.loc[paper_stats["key"] == key, "value"] = val
+
+paper_stats.to_csv(PAPER_STATS_PATH, index=False)
+print(f"\nPaper stats written to {PAPER_STATS_PATH}")

@@ -171,12 +171,16 @@ analysis_data <- analysis_data %>%
   mutate(
     # generate spells and cap since only have data going back to 1961
     neg_spell = sequence(rle(neg_ebitda)$lengths) * neg_ebitda,
+    neg_spell_cap_flag = ifelse(neg_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
     neg_spell = ifelse(neg_spell > 19, 19, neg_spell), 
     neg_pi_spell = sequence(rle(neg_pi)$lengths) * neg_pi,
+    neg_pi_spell_cap_flag = ifelse(neg_pi_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
     neg_pi_spell = ifelse(neg_pi_spell > 19, 19, neg_pi_spell),
     neg_ni_spell = sequence(rle(neg_ni)$lengths) * neg_ni,
+    neg_ni_spell_cap_flag = ifelse(neg_ni_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
     neg_ni_spell = ifelse(neg_ni_spell > 19, 19, neg_ni_spell),
     neg_profits_spell = sequence(rle(neg_profits)$lengths) * neg_profits,
+    neg_profits_spell_cap_flag = ifelse(neg_profits_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
     neg_profits_spell = ifelse(neg_profits_spell > 19, 19, neg_profits_spell)
   ) %>%
   ungroup() %>%

@@ -22,13 +22,88 @@ cat("Number of observations:", num_observations, "\n")
 theme_common <- theme_minimal(base_size = 18) +
   theme(
     text = element_text(family = "serif", size = 18),
-    plot.title = element_text(face = "bold"),
+    # plot.title = element_text(face = "bold"),
     legend.position = "bottom"
   )
 
 palette_2 <- viridis::inferno(2, begin = 0.0, end = 0.9)
 palette_3 <- viridis::inferno(3, begin = 0.0, end = 0.9)
 palette_4 <- viridis::inferno(4, begin = 0.0, end = 0.9)
+
+# 1 Get Paper Stats ---------------
+
+# neg_earnings_1980 and neg_earnings_2019
+neg_earnings_1980 <- mean(analysis_data$neg_ebitda[analysis_data$date == 1980], na.rm = TRUE) * 100
+neg_earnings_2019 <- mean(analysis_data$neg_ebitda[analysis_data$date == 2019], na.rm = TRUE) * 100
+
+# neg_spell_1980 and neg_spell_2019
+neg_spell_1980 <- mean(analysis_data$neg_spell[analysis_data$date == 1980 & analysis_data$neg_ebitda == 1], na.rm = TRUE)
+neg_spell_2019 <- mean(analysis_data$neg_spell[analysis_data$date == 2019 & analysis_data$neg_ebitda == 1], na.rm = TRUE)
+
+# avg_earnings_percchange and med_earnings_percchange (EBITDA)
+ebitda_1980 <- analysis_data$ebitda[analysis_data$date == 1980]
+ebitda_2019 <- analysis_data$ebitda[analysis_data$date == 2019]
+avg_earnings_percchange <- (mean(ebitda_2019, na.rm = TRUE) - mean(ebitda_1980, na.rm = TRUE)) / abs(mean(ebitda_1980, na.rm = TRUE)) * 100
+med_earnings_percchange <- (median(ebitda_2019, na.rm = TRUE) - median(ebitda_1980, na.rm = TRUE)) / abs(median(ebitda_1980, na.rm = TRUE)) * 100
+
+# num_obs_analysisdata and num_firms_analysisdata
+num_obs_analysisdata <- nrow(analysis_data)
+num_firms_analysisdata <- n_distinct(analysis_data$gvkey)
+
+# sd_sales_percchange and sd_ebitda_percchange
+sd_sales_1980 <- sd(analysis_data$sale[analysis_data$date == 1980], na.rm = TRUE)
+sd_sales_2019 <- sd(analysis_data$sale[analysis_data$date == 2019], na.rm = TRUE)
+sd_ebitda_1980 <- sd(analysis_data$ebitda[analysis_data$date == 1980], na.rm = TRUE)
+sd_ebitda_2019 <- sd(analysis_data$ebitda[analysis_data$date == 2019], na.rm = TRUE)
+sd_sales_percchange <- (sd_sales_2019 - sd_sales_1980) / abs(sd_sales_1980) * 100
+sd_ebitda_percchange <- (sd_ebitda_2019 - sd_ebitda_1980) / abs(sd_ebitda_1980) * 100
+
+# cogs_change_all and capex_change_all and sga_change_all (% change in medians, all firms)
+cogs_1980 <- analysis_data$cogs_sale[analysis_data$date == 1980]
+cogs_2019 <- analysis_data$cogs_sale[analysis_data$date == 2019]
+cogs_change_all <- (median(cogs_2019, na.rm = TRUE) - median(cogs_1980, na.rm = TRUE)) * 100
+
+capex_1980 <- analysis_data$capx_sale[analysis_data$date == 1980]
+capex_2019 <- analysis_data$capx_sale[analysis_data$date == 2019]
+capex_change_all <- (median(capex_2019, na.rm = TRUE) - median(capex_1980, na.rm = TRUE)) * 100
+
+sga_1980 <- analysis_data$sga_sale[analysis_data$date == 1980]
+sga_2019 <- analysis_data$sga_sale[analysis_data$date == 2019]
+sga_change_all <- (median(sga_2019, na.rm = TRUE) - median(sga_1980, na.rm = TRUE)) * 100
+
+# cogs_change_neg and capex_change_neg and sga_change_neg and rd_change_neg (% change in medians, neg earnings firms only)
+neg_1980 <- analysis_data$neg_ebitda == 1 & analysis_data$date == 1980
+neg_2019 <- analysis_data$neg_ebitda == 1 & analysis_data$date == 2019
+cogs_change_neg <- (median(analysis_data$cogs_sale[neg_2019], na.rm = TRUE) - median(analysis_data$cogs_sale[neg_1980], na.rm = TRUE)) * 100
+capex_change_neg <- (median(analysis_data$capx_sale[neg_2019], na.rm = TRUE) - median(analysis_data$capx_sale[neg_1980], na.rm = TRUE)) * 100
+sga_change_neg <- (median(analysis_data$sga_sale[neg_2019], na.rm = TRUE) - median(analysis_data$sga_sale[neg_1980], na.rm = TRUE)) * 100
+rd_change_neg <- (median(analysis_data$rd_sale[neg_2019], na.rm = TRUE) - median(analysis_data$rd_sale[neg_1980], na.rm = TRUE)) * 100
+
+# Write paper stats to CSV
+paper_stats <- read.csv("paper/paper_stats.csv", stringsAsFactors = FALSE)
+stats_computed <- list(
+  neg_earnings_1980       = neg_earnings_1980,
+  neg_earnings_2019       = neg_earnings_2019,
+  neg_spell_1980          = neg_spell_1980,
+  neg_spell_2019          = neg_spell_2019,
+  avg_earnings_percchange = avg_earnings_percchange,
+  med_earnings_percchange = med_earnings_percchange,
+  num_obs_analysisdata    = num_obs_analysisdata,
+  num_firms_analysisdata  = num_firms_analysisdata,
+  sd_sales_percchange     = sd_sales_percchange,
+  sd_ebitda_percchange    = sd_ebitda_percchange,
+  cogs_change_all         = cogs_change_all,
+  capex_change_all        = capex_change_all,
+  sga_change_all          = sga_change_all,
+  cogs_change_neg         = cogs_change_neg,
+  capex_change_neg        = capex_change_neg,
+  sga_change_neg          = sga_change_neg,
+  rd_change_neg           = rd_change_neg
+)
+for (key in names(stats_computed)) {
+  paper_stats$value[paper_stats$key == key] <- round(stats_computed[[key]], 2)
+}
+write.csv(paper_stats, "paper/paper_stats.csv", row.names = FALSE)
 
 # 2 Plots for Rise of Neg. Earnings ---------------
 
@@ -50,9 +125,9 @@ neg_ebitda_plot <- ggplot(neg_earnings_byyear, aes(x = date, y = neg_ebitda)) +
   geom_line(linewidth = 2) +
   geom_point(size = 3) +
   labs(
-    title = "",
     x = "Year",
-    y = "Percent of Firms with EBITDA < 0 (%)"
+    y = "",
+    title = "Percent of Firms with EBITDA < 0"
   ) +
   theme_common
 
@@ -62,9 +137,9 @@ neg_ebitda_spell_plot <- ggplot(neg_earnings_byyear, aes(x = date, y = neg_ebitd
   geom_line(linewidth = 2, color = "black") +
   geom_point(size = 3, color = "black") +
   labs(
-    title = "",
     x = "Year",
-    y = "Average Negative Spell Length (Years)"
+    y = "",
+    title = "Average Negative Spell Length (Years)"
   ) +
   theme_common
 
@@ -129,7 +204,7 @@ neg_earnings_plot <- ggplot(neg_earnings_alt, aes(x = date, y = pct_negative, co
   geom_point(size = 3) +
   scale_color_manual(values = setNames(palette_4,
     c("EBITDA < 0", "Net Income < 0", "Pretax Income < 0", "Profits < 0"))) +
-  labs(x = "Year", y = "% Firms with Negative Earnings", color = "") +
+  labs(x = "Year", y = "", title = "Percent Firms with Negative Earnings", color = "") +
   theme_common
 
 neg_spells_plot <- ggplot(neg_spells_alt, aes(x = date, y = mean_neg_spell, color = measure)) +
@@ -137,7 +212,7 @@ neg_spells_plot <- ggplot(neg_spells_alt, aes(x = date, y = mean_neg_spell, colo
   geom_point(size = 3) +
   scale_color_manual(values = setNames(palette_4,
     c("EBITDA < 0", "Net Income < 0", "Pretax Income < 0", "Profits < 0"))) +
-  labs(x = "Year", y = "Average Negative Earnings Spell Length (Years)", color = "") +
+  labs(x = "Year", y = "", title = "Average Negative Earnings Spell Length (Years)", color = "") +
   theme_common
 
 ggarrange(neg_earnings_plot, neg_spells_plot, ncol = 2, nrow = 1, common.legend = TRUE, legend = "bottom")

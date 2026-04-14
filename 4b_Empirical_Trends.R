@@ -15,7 +15,6 @@ load("data/clean/analysis_data.RData")
 theme_common <- theme_minimal(base_size = 24) +
   theme(
     text = element_text(family = "serif", size = 24),
-    # plot.title = element_text(face = "bold"),
     legend.position = "bottom"
   )
 
@@ -43,16 +42,12 @@ p_all <- ggplot(cost_ratios_long, aes(x = date, y = median_ratio, color = cost_t
   geom_point(size = 3) +
   scale_y_continuous(limits = c(0, 0.8)) +
   scale_x_continuous(breaks = seq(1975, 2020, 5)) +
-  # scale_color_manual(
-  #   values = c("median_rd_sale" = "#E31A1C", "median_sga_sale" = "#1F78B4", "median_cogs_sale" = "#33A02C", "median_capx_sale" = "#FF7F00"),
-  #   labels = c("median_rd_sale" = "R&D/Sales", "median_sga_sale" = "SG&A/Sales", "median_cogs_sale" = "COGS/Sales", "median_capx_sale" = "CapEx/Sales")
-  # ) +
   scale_color_manual(
     values = palette_4,
     labels = c("median_rd_sale" = "R&D/Sales", "median_sga_sale" = "SG&A/Sales", "median_cogs_sale" = "COGS/Sales", "median_capx_sale" = "CapEx/Sales")
   ) +
   labs(
-    title = "",
+    title = "All Firms",
     x = "Year",
     y = "Median Ratio",
     color = ""
@@ -83,18 +78,13 @@ p_neg <- ggplot(cost_ratios_neg_long, aes(x = date, y = median_ratio, color = co
   geom_line(linewidth = 2) +
   geom_point(size = 3) +
   scale_x_continuous(breaks = seq(1975, 2020, 5)) +
-  # y-axis limits 
   scale_y_continuous(limits = c(0, 0.8)) +
-  # scale_color_manual(
-  #   values = c("median_rd_sale" = "#E31A1C", "median_sga_sale" = "#1F78B4", "median_cogs_sale" = "#33A02C", "median_capx_sale" = "#FF7F00"),
-  #   labels = c("median_rd_sale" = "R&D/Sales", "median_sga_sale" = "SG&A/Sales", "median_cogs_sale" = "COGS/Sales", "median_capx_sale" = "CapEx/Sales")
-  # ) +
   scale_color_manual(
     values = palette_4,
     labels = c("median_rd_sale" = "R&D/Sales", "median_sga_sale" = "SG&A/Sales", "median_cogs_sale" = "COGS/Sales", "median_capx_sale" = "CapEx/Sales")
   ) +
   labs(
-    title = "",
+    title = "Firms with EBITDA < 0",
     x = "Year",
     y = "Median Ratio",
     color = ""
@@ -106,8 +96,6 @@ ggsave("figures/empirical/cost_ratios_neg_ebitda_by_year.pdf", width = 8, height
 # c. 2-panel figure ----------------------------
 
 ggarrange(p_all, p_neg,
-          labels = c("All Firms", "Negative Earnings Firms"),
-          font.label = list(size = 24, face = "bold", family = "serif"),
           ncol = 2, nrow = 1,
           common.legend = TRUE, legend = "bottom")
 

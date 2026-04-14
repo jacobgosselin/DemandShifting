@@ -19,10 +19,15 @@ cat("Number of firms:", num_firms, "\n")
 cat("Number of observations:", num_observations, "\n")
 
 # Common theme and palette for all plots
+theme_common_2panel <- theme_minimal(base_size = 24) +
+  theme(
+    text = element_text(family = "serif", size = 24),
+    legend.position = "bottom"
+  )
+
 theme_common <- theme_minimal(base_size = 18) +
   theme(
     text = element_text(family = "serif", size = 18),
-    # plot.title = element_text(face = "bold"),
     legend.position = "bottom"
   )
 
@@ -129,7 +134,7 @@ neg_ebitda_plot <- ggplot(neg_earnings_byyear, aes(x = date, y = neg_ebitda)) +
     y = "",
     title = "Percent of Firms with EBITDA < 0"
   ) +
-  theme_common
+  theme_common_2panel
 
 ggsave("figures/empirical/pct_negative_earnings_by_year.pdf", neg_ebitda_plot, width = 8, height = 6)
 
@@ -141,7 +146,7 @@ neg_ebitda_spell_plot <- ggplot(neg_earnings_byyear, aes(x = date, y = neg_ebitd
     y = "",
     title = "Average Negative Spell Length (Years)"
   ) +
-  theme_common
+  theme_common_2panel
 
 ggarrange(neg_ebitda_plot, neg_ebitda_spell_plot, ncol = 2, nrow = 1)
 ggsave("figures/empirical/neg_earnings_and_spell_over_time.pdf", width = 16, height = 9)
@@ -182,20 +187,20 @@ ggsave("figures/empirical/pct_negative_earnings_compustat_vs_irs.pdf", width = 8
 neg_earnings_alt <- neg_earnings_byyear %>%
   select(date, neg_ebitda, neg_pi, neg_ni, neg_profits) %>%
   rename(
-    "EBITDA < 0" = neg_ebitda,
-    "Pretax Income < 0" = neg_pi,
-    "Net Income < 0" = neg_ni,
-    "Profits < 0" = neg_profits
+    "EBITDA" = neg_ebitda,
+    "Pretax Income" = neg_pi,
+    "Net Income" = neg_ni,
+    "Profits" = neg_profits
   ) %>%
   pivot_longer(cols = -date, names_to = "measure", values_to = "pct_negative") 
 
 neg_spells_alt <- neg_earnings_byyear %>%
   select(date, neg_ebitda_spell, neg_pi_spell, neg_ni_spell, neg_profits_spell) %>%
   rename(
-    "EBITDA < 0" = neg_ebitda_spell,
-    "Pretax Income < 0" = neg_pi_spell,
-    "Net Income < 0" = neg_ni_spell,
-    "Profits < 0" = neg_profits_spell
+    "EBITDA" = neg_ebitda_spell,
+    "Pretax Income" = neg_pi_spell,
+    "Net Income" = neg_ni_spell,
+    "Profits" = neg_profits_spell
   ) %>%
   pivot_longer(cols = -date, names_to = "measure", values_to = "mean_neg_spell")
 
@@ -203,17 +208,17 @@ neg_earnings_plot <- ggplot(neg_earnings_alt, aes(x = date, y = pct_negative, co
   geom_line(linewidth = 2) +
   geom_point(size = 3) +
   scale_color_manual(values = setNames(palette_4,
-    c("EBITDA < 0", "Net Income < 0", "Pretax Income < 0", "Profits < 0"))) +
+    c("EBITDA", "Net Income", "Pretax Income", "Profits"))) +
   labs(x = "Year", y = "", title = "Percent Firms with Negative Earnings", color = "") +
-  theme_common
+  theme_common_2panel
 
 neg_spells_plot <- ggplot(neg_spells_alt, aes(x = date, y = mean_neg_spell, color = measure)) +
   geom_line(linewidth = 2) +
   geom_point(size = 3) +
   scale_color_manual(values = setNames(palette_4,
-    c("EBITDA < 0", "Net Income < 0", "Pretax Income < 0", "Profits < 0"))) +
-  labs(x = "Year", y = "", title = "Average Negative Earnings Spell Length (Years)", color = "") +
-  theme_common
+    c("EBITDA", "Net Income", "Pretax Income", "Profits"))) +
+  labs(x = "Year", y = "", title = "Average Negative Spell Length (Years)", color = "") +
+  theme_common_2panel
 
 ggarrange(neg_earnings_plot, neg_spells_plot, ncol = 2, nrow = 1, common.legend = TRUE, legend = "bottom")
 ggsave("figures/empirical/negative_earnings_alt_measures.pdf", width = 16, height = 9)
@@ -600,8 +605,8 @@ sector_2digit_long <- sector_averages_2digit %>%
          metric = factor(metric, levels = c("change_pct_negative", "pct_negative_late"))) %>%
   filter(!is.na(value))
 
-ggplot(sector_2digit_long, aes(x = reorder(as.factor(naics_2digit),
-                                            -value * (metric == "pct_negative_late")),
+ggplot(sector_2digit_long, aes(x = as.factor(naics_2digit),
+                                # x = reorder(as.factor(naics_2digit), -value * (metric == "pct_negative_late")),
                                 y = value, fill = metric)) +
   geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
   scale_fill_manual(
@@ -613,7 +618,7 @@ ggplot(sector_2digit_long, aes(x = reorder(as.factor(naics_2digit),
   labs(
     title = "",
     subtitle = "",
-    x = "NAICS 2-digit Sector",
+    x = "Sector",
     y = "",
     fill = ""
   ) +

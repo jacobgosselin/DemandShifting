@@ -50,6 +50,8 @@ ebitda_1980 <- analysis_data$ebitda[analysis_data$date == 1980]
 ebitda_2019 <- analysis_data$ebitda[analysis_data$date == 2019]
 avg_earnings_percchange <- (mean(ebitda_2019, na.rm = TRUE) - mean(ebitda_1980, na.rm = TRUE)) / abs(mean(ebitda_1980, na.rm = TRUE)) * 100
 med_earnings_percchange <- (median(ebitda_2019, na.rm = TRUE) - median(ebitda_1980, na.rm = TRUE)) / abs(median(ebitda_1980, na.rm = TRUE)) * 100
+avg_earnings_factorchange <- mean(ebitda_2019, na.rm = TRUE) / mean(ebitda_1980, na.rm = TRUE)
+med_earnings_factorchange <- median(ebitda_2019, na.rm = TRUE) / median(ebitda_1980, na.rm = TRUE)
 
 # num_obs_analysisdata and num_firms_analysisdata
 num_obs_analysisdata <- nrow(analysis_data)
@@ -103,7 +105,9 @@ stats_computed <- list(
   cogs_change_neg         = cogs_change_neg,
   capex_change_neg        = capex_change_neg,
   sga_change_neg          = sga_change_neg,
-  rd_change_neg           = rd_change_neg
+  rd_change_neg           = rd_change_neg,
+  avg_earnings_factorchange = avg_earnings_factorchange,
+  med_earnings_factorchange = med_earnings_factorchange
 )
 for (key in names(stats_computed)) {
   paper_stats$value[paper_stats$key == key] <- round(stats_computed[[key]], 2)

@@ -555,3 +555,19 @@ def agg_labor_shares(m_grid, k_grid, z_grid, eqm):
     total = La_total + Lk_total + Ls_total
     assert abs(total - 1.0) < 1e-4, f"Labor market clearing violated: L_a+L_k+L_s = {total:.6f}"
     return La_total, Lk_total, Ls_total
+
+@njit
+def agg_consumption(m_grid, k_grid, z_grid, Dist, sigma, c_agg, W, gamma_k, gamma_l, phi): 
+    Nm, Nk, Nz = len(m_grid), len(k_grid), len(z_grid)
+    consumption = 0.0
+    for im in range(Nm):
+        for ik in range(Nk):
+            for iz in range(Nz):
+                mass = Dist[im, ik, iz]
+                if mass <= 0.0:
+                    continue
+                m_val, k_val, z_val = m_grid[im], k_grid[ik], z_grid[iz]
+                c_val = c_i_star(m_val, k_val, z_val, c_agg, sigma, W, gamma_k, gamma_l, phi)
+                consumption += mass * c_val**((sigma-1)/sigma)
+    consumption = consumption**(sigma/(sigma-1))
+    return consumption

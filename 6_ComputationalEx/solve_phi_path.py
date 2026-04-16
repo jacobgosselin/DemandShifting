@@ -8,7 +8,6 @@ Output: a single pickle file containing all 40 equilibrium objects.
 
 Usage:
   python solve_phi_path.py              # solve all phi values in parallel
-  LOAD_FROM_CACHE=1 python solve_phi_path.py  # reload existing pickle, skip solve
 """
 
 import multiprocessing
@@ -24,16 +23,13 @@ from solve_vf import discretize_productivity, discretize_choices
 # Configuration
 # -----------------------------------------------------------------------------
 
-LOAD_FROM_CACHE = False   # Set True to reload solved_eqm/eqm_phi_path_all.pkl
 N_WORKERS = 1          # None = use all CPUs; set to 1 for local single-threaded runs
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 MAIN_DIR = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings"
+QUEST_DIR = "./"
 SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
-# SOLVED_EQM_DIR = os.path.join(_DIR, "solved_eqm")
-
-# Grid size constant (reduce to e.g. 50 for fast test runs)
-N_GRID = 100
+N_GRID = 100 # Grid size constant (reduce to e.g. 50 for fast test runs)
 
 # -----------------------------------------------------------------------------
 # Module-level setup: parameters and grids

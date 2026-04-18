@@ -28,14 +28,17 @@ from ss_solver.integrate_dist import pct_negative
 # Configuration
 # -----------------------------------------------------------------------------
 
-N_WORKERS     = 1       # None = use all CPUs; set to 1 for local single-threaded runs
+N_WORKERS     = None     # None = use all CPUs; set to 1 for local single-threaded runs
 N_GRID        = 100     # grid size for m, k (reduce to e.g. 50 for fast test runs)
 N_SIGMA_EPS   = 20      # number of sigma_eps grid points to scan
 SIGMA_EPS_LO  = 0.01
-SIGMA_EPS_HI  = 2.0
+SIGMA_EPS_HI  = 1.0
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
-OUT_DIR = os.path.join(_DIR, "data", "clean")
+MAIN_DIR = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings"
+QUEST_DIR = "./data"
+# SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
+SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data", "clean")
 
 # -----------------------------------------------------------------------------
 # Module-level setup (inherited by worker processes via fork)
@@ -125,7 +128,8 @@ def solve_single_sigma_eps(args):
     """
     Solve the steady-state equilibrium for one sigma_eps value.
     Rebuilds z_grid and Pi per trial (sigma_eps changes the Rouwenhorst grid).
-    Returns a result dict (lightweight: prices + pct_neg + convergence info).
+    Returns (sigma_eps_val, eqm) or (sigma_eps_val, None) on failure.
+    pct_neg, ls_success, res_norm are stored directly in the eqm dict.
     """
     sigma_eps_val, warm_start, params_dict = args
 
@@ -140,34 +144,20 @@ def solve_single_sigma_eps(args):
         )
     except Exception as e:
         print("  [FAIL] sigma_eps={:.4f}: {}".format(sigma_eps_val, e), flush=True)
-        return {"sigma_eps": sigma_eps_val, "W": None, "c_agg": None, "P_M": None,
-                "pct_neg": None, "ls_success": False, "res_norm": None}
+        return sigma_eps_val, None
 
-    ls_success = eqm.get("ls_success", False)
-    res_norm   = float(np.linalg.norm(eqm.get("residuals", np.full(3, np.inf))))
-    pct_neg    = float("nan")
-    try:
-        pct_neg = pct_negative(m_grid, k_grid, z_grid_t, eqm)
-    except Exception:
-        pass
+    eqm["res_norm"] = float(np.linalg.norm(eqm.get("residuals", np.full(3, np.inf))))
+    pct_neg = pct_negative(m_grid, k_grid, z_grid_t, eqm)
 
     print(
         "  sigma_eps={:.4f}: W={:.4f}  c={:.4f}  P_M={:.4f}  "
         "pct_neg={:.2f}%  res={:.2e}  ok={}".format(
             sigma_eps_val, eqm["W"], eqm["c_agg"], eqm["P_M"],
-            pct_neg, res_norm, ls_success,
+            pct_neg, eqm["res_norm"], eqm["ls_success"],
         ),
         flush=True,
     )
-    return {
-        "sigma_eps":  sigma_eps_val,
-        "W":          eqm["W"],
-        "c_agg":      eqm["c_agg"],
-        "P_M":        eqm["P_M"],
-        "pct_neg":    pct_neg,
-        "ls_success": ls_success,
-        "res_norm":   res_norm,
-    }
+    return sigma_eps_val, eqm
 
 # -----------------------------------------------------------------------------
 # Main
@@ -176,8 +166,8 @@ def solve_single_sigma_eps(args):
 if __name__ == "__main__":
     multiprocessing.set_start_method("fork", force=True)
 
-    os.makedirs(OUT_DIR, exist_ok=True)
-    out_path = os.path.join(OUT_DIR, "eqm_sigma_eps_path.pkl")
+    os.makedirs(SOLVED_EQM_DIR, exist_ok=True)
+    out_path = os.path.join(SOLVED_EQM_DIR, "eqm_sigma_eps_path.pkl")
 
     print("\n" + "=" * 60)
     print("Sigma_eps scan: {} points in [{}, {}]".format(
@@ -244,28 +234,22 @@ if __name__ == "__main__":
         results = pool.map(solve_single_sigma_eps, task_args)
 
     # ---- Save output ----
-    failed = [r["sigma_eps"] for r in results if not r["ls_success"]]
+    eqms_all = {val: eqm for val, eqm in results if eqm is not None}
+    failed = [val for val, eqm in results if eqm is None]
     if failed:
         print("\nWARNING: {} points failed to converge: {}".format(
             len(failed), ["{:.4f}".format(s) for s in failed]))
 
-    out = {
-        "results":    results,           # list of 20 dicts
-        "param_grid": sigma_eps_grid,    # np.array of sigma_eps values
-        "params":     _params_dict,      # fixed params
-    }
     with open(out_path, "wb") as f:
-        pickle.dump(out, f)
+        pickle.dump(eqms_all, f)
 
-    print("\nSaved {} results → {}".format(len(results), out_path))
+    print("\nSaved {} equilibria → {}".format(len(eqms_all), out_path))
     print("\n{:>12}  {:>8}  {:>8}  {:>8}  {:>8}  {:>8}".format(
         "sigma_eps", "W", "c_agg", "P_M", "pct_neg", "ok"))
-    for r in results:
+    for val, eqm in sorted(eqms_all.items()):
         print("  {:10.4f}  {:8.4f}  {:8.4f}  {:8.4f}  {:7.2f}%  {}".format(
-            r["sigma_eps"],
-            r["W"]     if r["W"]     is not None else float("nan"),
-            r["c_agg"] if r["c_agg"] is not None else float("nan"),
-            r["P_M"]   if r["P_M"]   is not None else float("nan"),
-            r["pct_neg"] if r["pct_neg"] is not None else float("nan"),
-            r["ls_success"],
+            val,
+            eqm["W"], eqm["c_agg"], eqm["P_M"],
+            eqm.get("pct_neg", float("nan")),
+            eqm["ls_success"],
         ))

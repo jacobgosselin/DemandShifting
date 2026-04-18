@@ -18,6 +18,7 @@ import os
 
 from ss_solver.solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
 from ss_solver.solve_vf import discretize_productivity, discretize_choices
+from ss_solver.integrate_dist import pct_negative as _pct_neg
 
 # -----------------------------------------------------------------------------
 # Configuration
@@ -140,13 +141,7 @@ def solve_single_phi(args):
         print(f"  [FAIL] year={int(year)} phi={phi:.4f}: {e}", flush=True)
         return int(year), None
 
-    pct_neg = float(np.nan)
-    try:
-        from integrate_dist import pct_negative as _pct_neg
-        pct_neg = _pct_neg(m_grid, k_grid, z_grid, eqm)
-    except Exception:
-        pass
-
+    pct_neg = _pct_neg(m_grid, k_grid, z_grid, eqm)
     print(
         f"  year={int(year)} phi={phi:.4f}: "
         f"W={eqm['W']:.4f}  c={eqm['c_agg']:.4f}  P_M={eqm['P_M']:.4f}  "
@@ -242,23 +237,7 @@ if __name__ == "__main__":
 
     eqms_all = {yr: eqm for (yr, eqm) in results if eqm is not None}
 
-    out = {
-        "eqms":       eqms_all,                   # {year: eqm_dict}
-        "phi_values": {                             # {year: phi}
-            int(years_arr[i]): phi_track_values[i]
-            for i in range(len(years_arr))
-        },
-        "years":      sorted(eqms_all.keys()),     # sorted list of int years
-        "grids":      {
-            "m_grid": m_grid,
-            "k_grid": k_grid,
-            "z_grid": z_grid,
-            "Pi":     Pi,
-        },
-        "params": _params_dict,
-    }
-
     with open(all_pkl_path, "wb") as f:
-        pickle.dump(out, f)
+        pickle.dump(eqms_all, f)
 
     print(f"\nSaved {len(eqms_all)} equilibria → {all_pkl_path}")

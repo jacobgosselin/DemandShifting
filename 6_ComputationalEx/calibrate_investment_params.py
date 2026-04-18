@@ -207,7 +207,7 @@ if __name__ == '__main__':
         tol=1e-6,
         atol=1e-6,
         maxiter=200,
-        popsize=10,
+        popsize=5,
         mutation=(0.5, 1.0),
         recombination=0.7,
         polish=False,

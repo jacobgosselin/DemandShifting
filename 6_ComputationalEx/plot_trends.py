@@ -57,15 +57,9 @@ os.makedirs(FIGURES_DIR, exist_ok=True)
 pkl_path = os.path.join(SOLVED_EQM_DIR, "eqm_phi_path.pkl")
 print(f"Loading equilibria from {pkl_path} ...")
 with open(pkl_path, "rb") as f:
-    data = pickle.load(f)
+    eqms = pickle.load(f)  # plain {year: eqm_dict}
 
-eqms       = data["eqms"]        # {year: eqm_dict}
-phi_by_year = data["phi_values"]  # {year: phi}
-years      = data["years"]        # sorted list of int years
-m_grid     = data["grids"]["m_grid"]
-k_grid     = data["grids"]["k_grid"]
-z_grid     = data["grids"]["z_grid"]
-Pi         = data["grids"]["Pi"]
+years = sorted(eqms.keys())
 
 print(f"Loaded {len(eqms)} equilibria for years {years[0]}–{years[-1]}.\n")
 
@@ -77,8 +71,8 @@ _base_log_sd_sale = emp_df.loc[years[0], "log_sd_sales"]
 emp_df["log_sd_earnings_norm"] = emp_df["log_sd_earnings"] - _base_log_sd_earn
 emp_df["log_sd_sales_norm"]    = emp_df["log_sd_sales"]    - _base_log_sd_sale
 
-# phi by year (from solved equilibrium path)
-phi_vals = [phi_by_year[yr] for yr in years]
+# phi by year (from solved equilibrium params)
+phi_vals = [eqms[yr]["params"]["phi"] for yr in years]
 
 # -----------------------------------------------------------------------------
 # Compute moments
@@ -100,9 +94,12 @@ sales_wtd_z_vals = []
 La_vals, Lk_vals, Ls_vals = [], [], []
 
 for yr in years:
-    eqm  = eqms[yr]
-    dist = eqm["Dist"]
-    p = eqm["params"]
+    eqm    = eqms[yr]
+    dist   = eqm["Dist"]
+    p      = eqm["params"]
+    m_grid = eqm["m_grid"]
+    k_grid = eqm["k_grid"]
+    z_grid = eqm["z_grid"]
 
     pct_neg_vals.append(pct_negative(m_grid, k_grid, z_grid, eqm))
     pct_neg_income_vals.append(pct_negative_income(m_grid, k_grid, z_grid, eqm))
@@ -138,7 +135,7 @@ sd_sales_vals    = np.log(sd_sales_arr    / sd_sales_arr[0])
 
 # Average age of negative-earning firms in the stationary distribution
 print("\nComputing avg age of neg-earning firms by year (slow) ...")
-avg_neg_vals = [avg_neg_spell_cohort(eqms[yr], z_grid, Pi, T=20) for yr in years]
+avg_neg_vals = [avg_neg_spell_cohort(eqms[yr], eqms[yr]["z_grid"], eqms[yr]["Pi"], T=20) for yr in years]
 
 # -----------------------------------------------------------------------------
 # Figures

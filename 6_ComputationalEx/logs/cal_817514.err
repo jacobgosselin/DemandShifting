@@ -1,7 +1,0 @@
-Traceback (most recent call last):
-  File "calibrate_investment_params.py", line 1, in <module>
-    from solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
-  File "/gpfs/projects/p32386/Demand_Shifting/solve_eqm.py", line 54
-    beta: float = 0.96
-        ^
-SyntaxError: invalid syntax

@@ -59,15 +59,9 @@ os.makedirs(FIGURES_DIR, exist_ok=True)
 pkl_path = os.path.join(SOLVED_EQM_DIR, "eqm_phi_path.pkl")
 print(f"Loading equilibria from {pkl_path} ...")
 with open(pkl_path, "rb") as f:
-    data = pickle.load(f)
+    eqms = pickle.load(f)  # plain {year: eqm_dict}
 
-eqms       = data["eqms"]        # {year: eqm_dict}
-phi_by_year = data["phi_values"]  # {year: phi}
-years      = data["years"]        # sorted list of int years
-m_grid     = data["grids"]["m_grid"]
-k_grid     = data["grids"]["k_grid"]
-z_grid     = data["grids"]["z_grid"]
-Pi         = data["grids"]["Pi"]
+years = sorted(eqms.keys())
 
 print(f"Loaded {len(eqms)} equilibria for years {years[0]}–{years[-1]}.\n")
 
@@ -79,8 +73,8 @@ _base_log_sd_sale = emp_df.loc[years[0], "log_sd_sales"]
 emp_df["log_sd_earnings_norm"] = emp_df["log_sd_earnings"] - _base_log_sd_earn
 emp_df["log_sd_sales_norm"]    = emp_df["log_sd_sales"]    - _base_log_sd_sale
 
-# phi by year (from solved equilibrium path)
-phi_vals = [phi_by_year[yr] for yr in years]
+# phi by year (from solved equilibrium params)
+phi_vals = [eqms[yr]["params"]["phi"] for yr in years]
 
 # -----------------------------------------------------------------------------
 # Compute moments
@@ -96,30 +90,35 @@ agg_k_vals    = []
 sales_wtd_z_vals = []
 La_vals, Lk_vals, Ls_vals = [], [], []
 
-eqm_0 = eqms[years[0]]
+eqm_0  = eqms[years[0]]
 dist_0 = eqm_0["Dist"]
-p_0 = eqm_0["params"]
+p_0    = eqm_0["params"]
 m_pol_0 = eqm_0['policies']["m_policy"]
 k_pol_0 = eqm_0['policies']["k_policy"]
+m_grid_0 = eqm_0["m_grid"]
+k_grid_0 = eqm_0["k_grid"]
+z_grid_0 = eqm_0["z_grid"]
 
 for yr in years:
-    eqm  = eqms[yr]
-    dist = eqm["Dist"]
-    p = eqm["params"]
+    eqm    = eqms[yr]
+    dist   = eqm["Dist"]
+    p      = eqm["params"]
+    m_grid = eqm["m_grid"]
+    k_grid = eqm["k_grid"]
+    z_grid = eqm["z_grid"]
 
     m_bnd_vals.append(np.sum(dist[-10:, :, :]) / np.sum(dist))
     k_bnd_vals.append(np.sum(dist[:, -10:, :]) / np.sum(dist))
 
-    # compute different c aggregates 
+    # compute different c aggregates
     c_main = eqm["c_agg"]
-    c_only_phi_val = agg_consumption(m_grid, k_grid, z_grid, dist_0, p_0['sigma'], eqm_0['c_agg'], eqm_0['W'], p_0['gamma_k'], p_0['gamma_l'], p['phi'])
-    c_phi_fixed_val = agg_consumption(m_grid, k_grid, z_grid, dist, p['sigma'], eqm['c_agg'], eqm['W'], p['gamma_k'], p['gamma_l'], p_0['phi'])
+    c_only_phi_val  = agg_consumption(m_grid_0, k_grid_0, z_grid_0, dist_0, p_0['sigma'], eqm_0['c_agg'], eqm_0['W'], p_0['gamma_k'], p_0['gamma_l'], p['phi'])
+    c_phi_fixed_val = agg_consumption(m_grid,   k_grid,   z_grid,   dist,   p['sigma'],   eqm['c_agg'],   eqm['W'],   p['gamma_k'],   p['gamma_l'],   p_0['phi'])
 
     c_vals.append(c_main)
     c_only_phi.append(c_only_phi_val)
     c_phi_fixed.append(c_phi_fixed_val)
 
-    # c_vals.append(eqm["c_agg"])
     agg_k_vals.append(agg_capital_stock(m_grid, k_grid, z_grid, eqm))
     sales_wtd_z_vals.append(sales_wtd_productivity(m_grid, k_grid, z_grid, eqm))
     La, Lk, Ls = agg_labor_shares(m_grid, k_grid, z_grid, eqm)

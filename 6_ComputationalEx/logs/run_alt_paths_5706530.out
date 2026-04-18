@@ -1,0 +1,21 @@
+
+Fixed structural parameters:
+  gamma_k   = 0.112077
+  gamma_l   = 0.855870
+  rho       = 0.815675
+  sigma_eps = 0.038731
+  exit_rate = 0.057326
+
+Calibrated params: alpha_a=0.463670  alpha_k=0.826898
+
+============================================================
+Sigma scan: 20 points in [1.1, 15.0]
+  phi=0, alpha_a=0.4637, alpha_k=0.8269
+============================================================
+
+Numba JIT warmup — compiling @njit functions on tiny 3x3x3 grid...
+Numba JIT warmup complete.
+
+Solving anchor: sigma_lo = 1.1000...
+  lo anchor: W=0.0599  c=0.1352  P_M=4.2908
+Solving anchor: sigma_hi = 15.0000...

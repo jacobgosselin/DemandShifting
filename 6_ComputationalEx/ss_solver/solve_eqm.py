@@ -150,7 +150,7 @@ def solve_ss_equilibrium_least_squares(m_grid, k_grid, z_grid, Pi,
         "policies": pol, "Dist": Dist,
         "Agg": {"C_impl": consumption, "Adv_Impl": agg_adv},
         "params": p.__dict__,
-        "m_grid": m_grid, "k_grid": k_grid  # Store the grids used (may have been converted from None)
+        "m_grid": m_grid, "k_grid": k_grid, "z_grid": z_grid, "Pi": Pi
     }
     if verbose:
         print("Solution:", {"C": c_agg, "W": W, "P_M": P_M})

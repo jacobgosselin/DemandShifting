@@ -16,8 +16,8 @@ import pandas as pd
 import pickle
 import os
 
-from solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
-from solve_vf import discretize_productivity, discretize_choices
+from ss_solver.solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
+from ss_solver.solve_vf import discretize_productivity, discretize_choices
 
 # -----------------------------------------------------------------------------
 # Configuration
@@ -36,7 +36,7 @@ N_GRID = 100 # Grid size constant (reduce to e.g. 50 for fast test runs)
 # (Runs on import; inherited by worker processes via fork.)
 # -----------------------------------------------------------------------------
 
-struct_params = pd.read_csv(os.path.join(_DIR, "structural_parameters.csv"))
+struct_params = pd.read_csv(os.path.join(_DIR, "data", "structural_parameters.csv"))
 
 # Fixed structural parameters (from ACF estimation and markup inversion)
 gamma_l   = struct_params["gamma_l"].iloc[0]
@@ -59,7 +59,7 @@ k_grid = discretize_choices(1e-3, 5, N_GRID, type="exp")
 
 # Load calibrated params (alpha_a, alpha_k)
 fixed_cost_cal = 0.0
-calib_path = os.path.join(_DIR, "calibrated_investment_params.csv")
+calib_path = os.path.join(_DIR, "data", "calibrated_investment_params.csv")
 if os.path.exists(calib_path):
     calib_df    = pd.read_csv(calib_path)
     alpha_a_cal = float(calib_df["alpha_a"].iloc[0])
@@ -75,7 +75,7 @@ print(f"Production function (fixed): gamma_k={gamma_k:.4f}, gamma_l={gamma_l:.4f
 z_grid, pi, Pi = discretize_productivity(rho, sigma_eps, 15)
 
 # Load phi path from calibration (phi_path.csv)
-_phi_df    = pd.read_csv(os.path.join(_DIR, "phi_path.csv"))
+_phi_df    = pd.read_csv(os.path.join(_DIR, "data", "phi_path.csv"))
 phi_byyear = _phi_df[["year", "phi"]].to_numpy()  # shape (T, 2)
 
 # Params dict for passing to workers (avoids passing EqmParams across fork boundary)

@@ -1,9 +1,9 @@
 import numpy as np
 from numba import njit
 from scipy.optimize import least_squares
-from solve_vf import *
-from integrate_dist import stationary_distribution
-from prod_fncts import *
+from .solve_vf import *
+from .integrate_dist import stationary_distribution
+from .prod_fncts import *
 
 @njit
 def aggregate_vals(Dist, m_pol, k_pol, m_grid, k_grid, z_grid,

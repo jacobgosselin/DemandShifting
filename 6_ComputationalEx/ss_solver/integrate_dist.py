@@ -1,8 +1,8 @@
 
 import numpy as np
 from numba import njit
-from prod_fncts import *
-from solve_vf import *
+from .prod_fncts import *
+from .solve_vf import *
 
 """ Functions to compute the stationary distribution of firms over (d,K,z)"""
 

@@ -1,7 +1,7 @@
 
 import numpy as np
 from numba import njit
-from prod_fncts import *
+from .prod_fncts import *
 import numpy as np
 
 # -------- helper fncts 1: create grids --------

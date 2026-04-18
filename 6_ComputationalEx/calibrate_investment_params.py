@@ -1,10 +1,10 @@
-from solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
-from integrate_dist import pct_negative, median_adv_ratio, median_inv_ratio
+from ss_solver.solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
+from ss_solver.integrate_dist import pct_negative, median_adv_ratio, median_inv_ratio
 import multiprocessing
 import numpy as np
 import pandas as pd
 import os
-from scipy.optimize import differential_evolution, least_squares, brentq, minimize
+from scipy.optimize import differential_evolution, least_squares
 
 
 # -----------------------------------------------------------------------------
@@ -15,7 +15,7 @@ from scipy.optimize import differential_evolution, least_squares, brentq, minimi
 
 _DIR = os.path.dirname(__file__)
 
-struct_params = pd.read_csv(os.path.join(_DIR, "structural_parameters.csv"))
+struct_params = pd.read_csv(os.path.join(_DIR, "data", "structural_parameters.csv"))
 
 # Fixed structural parameters (from ACF estimation and markup inversion)
 gamma_l   = struct_params["gamma_l"].iloc[0]
@@ -41,14 +41,6 @@ print("\nCalibration targets (base period):")
 print("  med_capx/rev = {:.4f}".format(med_capx_sale))
 print("  pct_neg      = {:.4f}%".format(neg_ebitda_base_pct))
 
-# Year-by-year pct_neg for phi path inversion
-pct_neg_df   = pd.read_csv(os.path.join(_DIR, "pct_neg_byyear.csv"))
-years        = pct_neg_df["year"].values.astype(int)
-pct_neg_data = pct_neg_df["pct_neg"].values   # already in percent (0-100)
-
-print("\nLoaded pct_neg by year: {} years ({}-{})".format(
-    len(years), years[0], years[-1]))
-
 # -----------------------------------------------------------------------------
 # Normalization: phi_0 = 0 in base period; sigma fixed from structural_parameters
 # -----------------------------------------------------------------------------
@@ -61,7 +53,7 @@ print("Fixed:         sigma = {:.6f}  (from structural_parameters)".format(sigma
 # Grids (m and k only; z_grid is pre-computed from fixed rho/sigma_eps)
 # -----------------------------------------------------------------------------
 
-from solve_vf import discretize_productivity, discretize_choices
+from ss_solver.solve_vf import discretize_productivity, discretize_choices
 
 m_grid = discretize_choices(1e-3, 5, 100, type="exp")
 k_grid = discretize_choices(1e-3, 5, 100, type="exp")
@@ -73,7 +65,7 @@ z_grid, _, Pi = discretize_productivity(rho, sigma_eps, 15)
 # Load initial guesses from previous calibration (or use defaults)
 # -----------------------------------------------------------------------------
 
-out_path = os.path.join(_DIR, "calibrated_investment_params.csv")
+out_path = os.path.join(_DIR, "data", "calibrated_investment_params.csv")
 
 alpha_a_init = 0.5
 alpha_k_init = 0.5
@@ -138,33 +130,6 @@ def _solve_eqm(phi_val, alpha_a, alpha_k, sigma_val,
                 )
             )
     return eqm
-
-
-def _solve_year_brentq(yr, pct_target, alpha_a, alpha_k, sigma,
-                       phi_lo, phi_hi, phi_0_val):
-    """Invert pct_neg -> phi for a single year via brentq. Top-level for pickling."""
-    if yr == 1980:
-        return (yr, phi_0_val)
-
-    def _pct_resid(phi_try):
-        eqm = _solve_eqm(phi_try, alpha_a, alpha_k, sigma,
-                         fixed_cost=0.0, max_nfev=500, vf_maxit=200)
-        if eqm is None:
-            return 1e3
-        pct_neg = pct_negative(m_grid, k_grid, z_grid, eqm)
-        print("  [{}] phi={:.4f} -> pct_neg={:.4f}%, target={:.4f}".format(
-            yr, phi_try, pct_neg, pct_target), flush=True)
-        return pct_neg - pct_target
-
-    try:
-        phi_t = brentq(_pct_resid, phi_lo, phi_hi, xtol=1e-6, maxiter=50)
-        print("  phi_{} = {:.6f}".format(yr, phi_t), flush=True)
-    except ValueError as e:
-        print("  [WARN] brentq failed for year {}: {}  — using phi_0 = {:.4f}".format(
-            yr, e, phi_0_val), flush=True)
-        phi_t = phi_0_val
-
-    return (yr, phi_t)
 
 
 # -----------------------------------------------------------------------------
@@ -279,36 +244,3 @@ if __name__ == '__main__':
     )
     print("\nBase calibration saved to {}".format(out_path))
 
-    # -------------------------------------------------------------------------
-    # Phi path inversion: find phi_t for each year to match pct_neg_t
-    # -------------------------------------------------------------------------
-
-    print("\n" + "=" * 60)
-    print("Phi path inversion: year-by-year brentq on pct_neg")
-    print("=" * 60)
-
-    # Wide bounds for phi brentq search
-    phi_lo_global = 0
-    phi_hi_global = 0.75
-
-    n_workers = multiprocessing.cpu_count()
-    args_list = [
-        (yr, pct, alpha_a_cal, alpha_k_cal, sigma_fixed,
-         phi_lo_global, phi_hi_global, phi_0)
-        for yr, pct in zip(years, pct_neg_data)
-    ]
-    print("Running phi-path inversion on {} cores ({} years)...".format(
-        n_workers, len(args_list)))
-    with multiprocessing.Pool(processes=n_workers) as pool:
-        results = pool.starmap(_solve_year_brentq, args_list)
-    phi_path = sorted(results, key=lambda x: x[0])
-
-    # -------------------------------------------------------------------------
-    # Save phi path
-    # -------------------------------------------------------------------------
-
-    phi_df = pd.DataFrame(phi_path, columns=["year", "phi"])
-    phi_path_out = os.path.join(_DIR, "phi_path.csv")
-    phi_df.to_csv(phi_path_out, index=False)
-    print("\nPhi path saved to {}".format(phi_path_out))
-    print(phi_df.to_string(index=False))

@@ -23,7 +23,7 @@ import os
 palette_2 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 2)]
 palette_3 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 3)]
 
-from integrate_dist import (
+from ss_solver.integrate_dist import (
     pct_negative, pct_negative_income, est_dist, est_sd,
     median_adv_ratio, median_inv_ratio, median_cogs_ratio,
     median_earnings, mean_earnings,
@@ -31,7 +31,7 @@ from integrate_dist import (
     avg_firm_earnings_path, cohort_neg_path,
     avg_neg_spell_cohort,
 )
-from prod_fncts import *
+from ss_solver.prod_fncts import *
 
 # -----------------------------------------------------------------------------
 # Paths
@@ -70,7 +70,7 @@ Pi         = data["grids"]["Pi"]
 print(f"Loaded {len(eqms)} equilibria for years {years[0]}–{years[-1]}.\n")
 
 # Load empirical time-series moments (produced by 5b_exog_params.R)
-_emp_csv = os.path.join(_DIR, "empirical_trends_byyear.csv")
+_emp_csv = os.path.join(_DIR, "data", "empirical_trends_byyear.csv")
 emp_df = pd.read_csv(_emp_csv).set_index("year")
 _base_log_sd_earn = emp_df.loc[years[0], "log_sd_earnings"]
 _base_log_sd_sale = emp_df.loc[years[0], "log_sd_sales"]

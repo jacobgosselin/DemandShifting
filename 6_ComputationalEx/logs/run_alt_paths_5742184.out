@@ -1,0 +1,127 @@
+
+Fixed structural parameters:
+  gamma_k     = 0.112077
+  gamma_l     = 0.855870
+  rho         = 0.815675
+  sigma_eps   = 0.038731
+  sigma_fixed = 3.147246  (fixed = mu/(mu-1) from ACF markup)
+  exit_rate   = 0.057326
+Calibrated params: alpha_a=0.4632, alpha_k=0.8277, 
+Production function (fixed): gamma_k=0.1121, gamma_l=0.8559
+
+Phi path:
+  Year 1980: phi = 0.0000
+  Year 1981: phi = 0.0261
+  Year 1982: phi = 0.2794
+  Year 1983: phi = 0.2874
+  Year 1984: phi = 0.2851
+  Year 1985: phi = 0.4461
+  Year 1986: phi = 0.4727
+  Year 1987: phi = 0.4445
+  Year 1988: phi = 0.4267
+  Year 1989: phi = 0.3950
+  Year 1990: phi = 0.3182
+  Year 1991: phi = 0.3139
+  Year 1992: phi = 0.2749
+  Year 1993: phi = 0.2854
+  Year 1994: phi = 0.2794
+  Year 1995: phi = 0.3139
+  Year 1996: phi = 0.4238
+  Year 1997: phi = 0.4623
+  Year 1998: phi = 0.5902
+  Year 1999: phi = 0.6278
+  Year 2000: phi = 0.6679
+  Year 2001: phi = 0.6801
+  Year 2002: phi = 0.6069
+  Year 2003: phi = 0.4671
+  Year 2004: phi = 0.4461
+  Year 2005: phi = 0.4544
+  Year 2006: phi = 0.4638
+  Year 2007: phi = 0.4652
+  Year 2008: phi = 0.4662
+  Year 2009: phi = 0.4638
+  Year 2010: phi = 0.2957
+  Year 2011: phi = 0.3003
+  Year 2012: phi = 0.4536
+  Year 2013: phi = 0.4777
+  Year 2014: phi = 0.4885
+  Year 2015: phi = 0.5774
+  Year 2016: phi = 0.5462
+  Year 2017: phi = 0.4893
+  Year 2018: phi = 0.5187
+  Year 2019: phi = 0.5695
+
+Numba JIT warmup — compiling @njit functions on tiny 3x3x3 grid...
+Numba JIT warmup complete.
+
+Solving anchor equilibrium: phi_0 (1980)...
+  phi_0 anchor: W=0.5527  c=0.7065  P_M=1.9478
+
+Solving anchor equilibrium: phi_T (2019)...
+  phi_T anchor: W=0.5697  c=0.5935  P_M=2.1738
+
+Launching Pool with 40 workers for 40 phi values...
+
+  year=1980 phi=0.0000: W=0.5527  c=0.7065  P_M=1.9478  pct_neg=10.81%
+  year=2019 phi=0.5695: W=0.5697  c=0.5935  P_M=2.1738  pct_neg=28.04%
+  year=1981 phi=0.0261: W=0.5532  c=0.7021  P_M=1.9652  pct_neg=12.63%
+  year=2004 phi=0.4461: W=0.5644  c=0.6234  P_M=2.1599  pct_neg=23.18%
+  year=1994 phi=0.2794: W=0.5587  c=0.6564  P_M=2.1020  pct_neg=19.37%
+  year=1987 phi=0.4445: W=0.5643  c=0.6237  P_M=2.1595  pct_neg=23.04%
+  year=1996 phi=0.4238: W=0.5635  c=0.6281  P_M=2.1541  pct_neg=22.00%
+  year=1998 phi=0.5902: W=0.5709  c=0.5883  P_M=2.1742  pct_neg=28.88%
+  year=2009 phi=0.4638: W=0.5651  c=0.6195  P_M=2.1638  pct_neg=23.95%
+  year=2016 phi=0.5462: W=0.5686  c=0.5994  P_M=2.1730  pct_neg=27.27%
+  year=1982 phi=0.2794: W=0.5587  c=0.6564  P_M=2.1020  pct_neg=19.10%
+  year=1991 phi=0.3139: W=0.5597  c=0.6498  P_M=2.1163  pct_neg=20.68%
+  year=2012 phi=0.4536: W=0.5647  c=0.6218  P_M=2.1617  pct_neg=23.47%
+  year=2008 phi=0.4662: W=0.5652  c=0.6190  P_M=2.1643  pct_neg=24.68%
+  year=1986 phi=0.4727: W=0.5654  c=0.6175  P_M=2.1656  pct_neg=25.20%
+  year=2003 phi=0.4671: W=0.5652  c=0.6188  P_M=2.1645  pct_neg=24.98%
+  year=2013 phi=0.4777: W=0.5656  c=0.6164  P_M=2.1664  pct_neg=25.26%
+  year=1997 phi=0.4623: W=0.5650  c=0.6199  P_M=2.1635  pct_neg=23.91%
+  year=1983 phi=0.2874: W=0.5589  c=0.6549  P_M=2.1054  pct_neg=19.85%
+  year=1989 phi=0.3950: W=0.5624  c=0.6340  P_M=2.1455  pct_neg=21.20%
+  year=1984 phi=0.2851: W=0.5589  c=0.6553  P_M=2.1044  pct_neg=19.79%
+  year=2015 phi=0.5774: W=0.5702  c=0.5915  P_M=2.1740  pct_neg=28.24%
+  year=2018 phi=0.5187: W=0.5673  c=0.6064  P_M=2.1714  pct_neg=26.05%
+  year=2017 phi=0.4893: W=0.5661  c=0.6136  P_M=2.1683  pct_neg=25.49%
+  year=1990 phi=0.3182: W=0.5599  c=0.6490  P_M=2.1179  pct_neg=20.97%
+  year=2014 phi=0.4885: W=0.5661  c=0.6138  P_M=2.1681  pct_neg=25.48%
+  year=1995 phi=0.3139: W=0.5597  c=0.6498  P_M=2.1163  pct_neg=20.68%
+  year=2011 phi=0.3003: W=0.5593  c=0.6524  P_M=2.1108  pct_neg=20.09%
+  year=2002 phi=0.6069: W=0.5718  c=0.5840  P_M=2.1743  pct_neg=29.59%
+  year=1992 phi=0.2749: W=0.5586  c=0.6573  P_M=2.1000  pct_neg=18.79%
+  year=2005 phi=0.4544: W=0.5647  c=0.6216  P_M=2.1619  pct_neg=23.49%
+  year=2007 phi=0.4652: W=0.5651  c=0.6192  P_M=2.1641  pct_neg=24.28%
+  year=1993 phi=0.2854: W=0.5589  c=0.6553  P_M=2.1046  pct_neg=19.79%
+  year=1988 phi=0.4267: W=0.5636  c=0.6275  P_M=2.1550  pct_neg=22.13%
+  year=2010 phi=0.2957: W=0.5592  c=0.6533  P_M=2.1089  pct_neg=20.02%
+  year=2006 phi=0.4638: W=0.5651  c=0.6195  P_M=2.1638  pct_neg=23.95%
+  year=1985 phi=0.4461: W=0.5644  c=0.6234  P_M=2.1599  pct_neg=23.25%
+  year=1999 phi=0.6278: W=0.5731  c=0.5786  P_M=2.1739  pct_neg=30.35%
+  year=2001 phi=0.6801: W=0.5766  c=0.5643  P_M=2.1688  pct_neg=33.00%
+  year=2000 phi=0.6679: W=0.5758  c=0.5678  P_M=2.1707  pct_neg=31.86%
+
+Saved 40 equilibria → ./data/eqm_phi_path.pkl
+
+Fixed structural parameters:
+  gamma_k   = 0.112077
+  gamma_l   = 0.855870
+  rho       = 0.815675
+  sigma_eps = 0.038731
+  exit_rate = 0.057326
+
+Calibrated params: alpha_a=0.463197  alpha_k=0.827658
+
+============================================================
+Sigma scan: 20 points in [1.1, 15.0]
+  phi=0, alpha_a=0.4632, alpha_k=0.8277
+============================================================
+
+Numba JIT warmup — compiling @njit functions on tiny 3x3x3 grid...
+Numba JIT warmup complete.
+
+Solving anchor: sigma_lo = 1.1000...
+  lo anchor: W=0.0599  c=0.1353  P_M=4.2909
+Solving anchor: sigma_hi = 15.0000...

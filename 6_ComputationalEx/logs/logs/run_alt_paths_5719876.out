@@ -1,0 +1,139 @@
+
+Fixed structural parameters:
+  gamma_k   = 0.112077
+  gamma_l   = 0.855870
+  rho       = 0.815675
+  sigma_eps = 0.038731
+  exit_rate = 0.057326
+
+Calibrated params: alpha_a=0.463197  alpha_k=0.827658
+
+============================================================
+Sigma scan: 20 points in [1.1, 15.0]
+  phi=0, alpha_a=0.4632, alpha_k=0.8277
+============================================================
+
+Numba JIT warmup — compiling @njit functions on tiny 3x3x3 grid...
+Numba JIT warmup complete.
+
+Solving anchor: sigma_lo = 1.1000...
+  lo anchor: W=0.0599  c=0.1353  P_M=4.2909
+Solving anchor: sigma_hi = 15.0000...
+  hi anchor: W=0.7752  c=0.8636  P_M=0.8262
+
+Launching Pool with 20 workers for 20 sigma values...
+
+  sigma=1.1000: W=0.0599  c=0.1353  P_M=4.2909  pct_neg=11.60%  res=8.07e-11  ok=True
+  sigma=15.0000: W=0.7752  c=0.8636  P_M=0.8262  pct_neg=5.73%  res=1.27e-13  ok=True
+  sigma=14.2684: W=0.7720  c=0.8614  P_M=0.8469  pct_neg=5.73%  res=1.59e-12  ok=True
+  sigma=13.5368: W=0.7686  c=0.8590  P_M=0.8693  pct_neg=5.73%  res=1.21e-13  ok=True
+  sigma=12.8053: W=0.7648  c=0.8563  P_M=0.8938  pct_neg=5.73%  res=3.70e-15  ok=True
+  sigma=12.0737: W=0.7605  c=0.8533  P_M=0.9208  pct_neg=5.73%  res=1.19e-11  ok=True
+  sigma=11.3421: W=0.7557  c=0.8500  P_M=0.9505  pct_neg=5.73%  res=5.28e-15  ok=True
+  sigma=10.6105: W=0.7502  c=0.8462  P_M=0.9835  pct_neg=5.73%  res=2.40e-15  ok=True
+  sigma=9.8789: W=0.7440  c=0.8419  P_M=1.0205  pct_neg=5.73%  res=1.77e-11  ok=True
+  sigma=1.8316: W=0.3523  c=0.5344  P_M=2.7969  pct_neg=14.12%  res=1.79e-12  ok=True
+  sigma=9.1474: W=0.7367  c=0.8369  P_M=1.0624  pct_neg=5.73%  res=7.64e-12  ok=True
+  sigma=8.4158: W=0.7283  c=0.8311  P_M=1.1102  pct_neg=5.73%  res=2.30e-10  ok=True
+  sigma=2.5632: W=0.4888  c=0.6565  P_M=2.2197  pct_neg=13.82%  res=4.32e-15  ok=True
+  sigma=7.6842: W=0.7183  c=0.8242  P_M=1.1654  pct_neg=5.73%  res=2.71e-15  ok=True
+  sigma=6.9526: W=0.7062  c=0.8158  P_M=1.2303  pct_neg=5.75%  res=1.25e-13  ok=True
+  sigma=3.2947: W=0.5653  c=0.7160  P_M=1.8934  pct_neg=11.03%  res=2.53e-11  ok=True
+  sigma=6.2211: W=0.6913  c=0.8056  P_M=1.3078  pct_neg=5.79%  res=2.32e-13  ok=True
+  sigma=4.7579: W=0.6477  c=0.7753  P_M=1.5216  pct_neg=6.71%  res=1.86e-15  ok=True
+  sigma=5.4895: W=0.6724  c=0.7925  P_M=1.4025  pct_neg=6.36%  res=2.05e-12  ok=True
+  sigma=4.0263: W=0.6140  c=0.7515  P_M=1.6775  pct_neg=7.06%  res=4.42e-15  ok=True
+
+Saved 20 equilibria → ./data/data/clean/eqm_sigma_path.pkl
+
+     sigma         W     c_agg       P_M   pct_neg        ok
+    1.1000    0.0599    0.1353    4.2909      nan%  True
+    1.8316    0.3523    0.5344    2.7969      nan%  True
+    2.5632    0.4888    0.6565    2.2197      nan%  True
+    3.2947    0.5653    0.7160    1.8934      nan%  True
+    4.0263    0.6140    0.7515    1.6775      nan%  True
+    4.7579    0.6477    0.7753    1.5216      nan%  True
+    5.4895    0.6724    0.7925    1.4025      nan%  True
+    6.2211    0.6913    0.8056    1.3078      nan%  True
+    6.9526    0.7062    0.8158    1.2303      nan%  True
+    7.6842    0.7183    0.8242    1.1654      nan%  True
+    8.4158    0.7283    0.8311    1.1102      nan%  True
+    9.1474    0.7367    0.8369    1.0624      nan%  True
+    9.8789    0.7440    0.8419    1.0205      nan%  True
+   10.6105    0.7502    0.8462    0.9835      nan%  True
+   11.3421    0.7557    0.8500    0.9505      nan%  True
+   12.0737    0.7605    0.8533    0.9208      nan%  True
+   12.8053    0.7648    0.8563    0.8938      nan%  True
+   13.5368    0.7686    0.8590    0.8693      nan%  True
+   14.2684    0.7720    0.8614    0.8469      nan%  True
+   15.0000    0.7752    0.8636    0.8262      nan%  True
+
+Fixed structural parameters:
+  gamma_k     = 0.112077
+  gamma_l     = 0.855870
+  rho         = 0.815675
+  sigma       = 3.147246  (fixed markup, from ACF)
+  sigma_eps_0 = 0.038731  (base period, for JIT warmup)
+  exit_rate   = 0.057326
+
+Calibrated params: alpha_a=0.463197  alpha_k=0.827658
+
+============================================================
+Sigma_eps scan: 20 points in [0.01, 1.0]
+  phi=0, sigma=3.1472, alpha_a=0.4632, alpha_k=0.8277
+============================================================
+
+Numba JIT warmup — compiling @njit functions on tiny 3x3x3 grid...
+Numba JIT warmup complete.
+
+Solving anchor: sigma_eps_lo = 0.0100...
+  lo anchor: W=0.5523  c=0.7062  P_M=1.9487
+Solving anchor: sigma_eps_hi = 1.0000...
+  hi anchor: W=0.9084  c=0.8971  P_M=1.3808
+
+Launching Pool with 20 workers for 20 sigma_eps values...
+
+  sigma_eps=0.0100: W=0.5523  c=0.7062  P_M=1.9487  pct_neg=10.73%  res=8.34e-11  ok=True
+  sigma_eps=1.0000: W=0.9084  c=0.8971  P_M=1.3808  pct_neg=39.07%  res=3.24e-15  ok=True
+  sigma_eps=0.0621: W=0.5535  c=0.7071  P_M=1.9461  pct_neg=10.89%  res=2.99e-14  ok=True
+  sigma_eps=0.1142: W=0.5563  c=0.7092  P_M=1.9399  pct_neg=11.13%  res=2.59e-10  ok=True
+  sigma_eps=0.8437: W=0.7962  c=0.8644  P_M=1.5301  pct_neg=28.04%  res=1.51e-09  ok=True
+  sigma_eps=0.8958: W=0.8307  c=0.8772  P_M=1.4821  pct_neg=31.34%  res=2.00e-11  ok=True
+  sigma_eps=0.9479: W=0.8681  c=0.8881  P_M=1.4321  pct_neg=35.20%  res=4.50e-14  ok=True
+  sigma_eps=0.2184: W=0.5670  c=0.7175  P_M=1.9164  pct_neg=11.83%  res=2.54e-14  ok=True
+  sigma_eps=0.1663: W=0.5608  c=0.7127  P_M=1.9299  pct_neg=11.31%  res=2.98e-15  ok=True
+  sigma_eps=0.2705: W=0.5749  c=0.7235  P_M=1.8994  pct_neg=12.11%  res=2.30e-13  ok=True
+  sigma_eps=0.3226: W=0.5846  c=0.7309  P_M=1.8792  pct_neg=12.58%  res=1.53e-12  ok=True
+  sigma_eps=0.4268: W=0.6097  c=0.7497  P_M=1.8294  pct_neg=13.96%  res=5.36e-12  ok=True
+  sigma_eps=0.3747: W=0.5962  c=0.7396  P_M=1.8558  pct_neg=13.28%  res=3.53e-12  ok=True
+  sigma_eps=0.4789: W=0.6252  c=0.7611  P_M=1.8002  pct_neg=14.77%  res=5.48e-12  ok=True
+  sigma_eps=0.5311: W=0.6427  c=0.7738  P_M=1.7686  pct_neg=15.67%  res=3.78e-12  ok=True
+  sigma_eps=0.5832: W=0.6624  c=0.7878  P_M=1.7346  pct_neg=16.81%  res=1.14e-12  ok=True
+  sigma_eps=0.6353: W=0.6843  c=0.8029  P_M=1.6983  pct_neg=18.19%  res=6.92e-13  ok=True
+  sigma_eps=0.6874: W=0.7086  c=0.8186  P_M=1.6597  pct_neg=19.97%  res=3.42e-13  ok=True
+  sigma_eps=0.7395: W=0.7352  c=0.8345  P_M=1.6190  pct_neg=22.23%  res=3.94e-14  ok=True
+  sigma_eps=0.7916: W=0.7644  c=0.8500  P_M=1.5758  pct_neg=24.91%  res=7.93e-15  ok=True
+
+Saved 20 equilibria → ./data/data/clean/eqm_sigma_eps_path.pkl
+
+   sigma_eps         W     c_agg       P_M   pct_neg        ok
+      0.0100    0.5523    0.7062    1.9487      nan%  True
+      0.0621    0.5535    0.7071    1.9461      nan%  True
+      0.1142    0.5563    0.7092    1.9399      nan%  True
+      0.1663    0.5608    0.7127    1.9299      nan%  True
+      0.2184    0.5670    0.7175    1.9164      nan%  True
+      0.2705    0.5749    0.7235    1.8994      nan%  True
+      0.3226    0.5846    0.7309    1.8792      nan%  True
+      0.3747    0.5962    0.7396    1.8558      nan%  True
+      0.4268    0.6097    0.7497    1.8294      nan%  True
+      0.4789    0.6252    0.7611    1.8002      nan%  True
+      0.5311    0.6427    0.7738    1.7686      nan%  True
+      0.5832    0.6624    0.7878    1.7346      nan%  True
+      0.6353    0.6843    0.8029    1.6983      nan%  True
+      0.6874    0.7086    0.8186    1.6597      nan%  True
+      0.7395    0.7352    0.8345    1.6190      nan%  True
+      0.7916    0.7644    0.8500    1.5758      nan%  True
+      0.8437    0.7962    0.8644    1.5301      nan%  True
+      0.8958    0.8307    0.8772    1.4821      nan%  True
+      0.9479    0.8681    0.8881    1.4321      nan%  True
+      1.0000    0.9084    0.8971    1.3808      nan%  True

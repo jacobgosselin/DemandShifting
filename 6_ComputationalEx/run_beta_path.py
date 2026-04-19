@@ -1,17 +1,15 @@
 """
-run_sigma_eps_path.py
----------------------
-Scan steady-state equilibria over 20 evenly-spaced sigma_eps values in [0.01, 2.0],
-with phi=0 and all other parameters fixed.  For each grid point, the z_grid
-and Pi are rebuilt via discretize_productivity (sigma_eps changes the
-Rouwenhorst grid).  For each point, record pct_neg, W, c_agg, P_M, and
-convergence info.
+run_beta_path.py
+-----------------
+Scan steady-state equilibria over 20 evenly-spaced beta values in [0.95, 0.99],
+with phi=0 and all other parameters fixed.  For each grid point, record
+pct_neg, W, c_agg, P_M, and convergence info.
 
-The resulting pct_neg vs. sigma_eps curve reveals the shape of the mapping so
-that a calibration strategy can be designed.
+The resulting pct_neg vs. beta curve reveals the shape of the mapping so that
+a calibration strategy can be designed.
 
 Usage:
-  python run_sigma_eps_path.py
+  python run_beta_path.py
 """
 
 import multiprocessing
@@ -28,10 +26,10 @@ from ss_solver.integrate_dist import pct_negative
 # Configuration
 # -----------------------------------------------------------------------------
 
-N_WORKERS     = None     # None = use all CPUs; set to 1 for local single-threaded runs
-N_SIGMA_EPS   = 20      # number of sigma_eps grid points to scan
-SIGMA_EPS_LO  = 0.01
-SIGMA_EPS_HI  = 1.0
+N_WORKERS = None        # None = use all CPUs; set to 1 for local single-threaded runs
+N_BETA    = 20          # number of beta grid points to scan
+BETA_LO   = 0.95
+BETA_HI   = 0.99
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -47,7 +45,7 @@ n_prod_grid   = int(_gcfg["grid"]["n_prod_grid"])
 MAIN_DIR = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings"
 QUEST_DIR = "./data"
 # SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
-SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data")
+SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data", "clean")
 
 # -----------------------------------------------------------------------------
 # Module-level setup (inherited by worker processes via fork)
@@ -55,24 +53,22 @@ SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data")
 
 struct_params = pd.read_csv(os.path.join(_DIR, "data", "structural_parameters.csv"))
 
-gamma_l       = struct_params["gamma_l"].iloc[0]
-gamma_k       = struct_params["gamma_k"].iloc[0]
-rho           = struct_params["rho"].iloc[0]
-sigma_fixed   = struct_params["sigma"].iloc[0]    # fixed markup parameter
-sigma_eps_0   = struct_params["sigma_xi"].iloc[0] # base-period value (for warmup)
-exit_rate     = struct_params["exit_rate"].iloc[0]
+gamma_l     = struct_params["gamma_l"].iloc[0]
+gamma_k     = struct_params["gamma_k"].iloc[0]
+rho         = struct_params["rho"].iloc[0]
+sigma_eps   = struct_params["sigma_xi"].iloc[0]
+exit_rate   = struct_params["exit_rate"].iloc[0]
 
-print("\nFixed structural parameters:")
-print("  gamma_k     = {:.6f}".format(gamma_k))
-print("  gamma_l     = {:.6f}".format(gamma_l))
-print("  rho         = {:.6f}".format(rho))
-print("  sigma       = {:.6f}  (fixed markup, from ACF)".format(sigma_fixed))
-print("  sigma_eps_0 = {:.6f}  (base period, for JIT warmup)".format(sigma_eps_0))
-print("  exit_rate   = {:.6f}".format(exit_rate))
+print("\nFixed structural parameters:", flush=True)
+print("  gamma_k   = {:.6f}".format(gamma_k), flush=True)
+print("  gamma_l   = {:.6f}".format(gamma_l), flush=True)
+print("  rho       = {:.6f}".format(rho), flush=True)
+print("  sigma_eps = {:.6f}".format(sigma_eps), flush=True)
+print("  exit_rate = {:.6f}".format(exit_rate), flush=True)
 
 m_grid = discretize_choices(choice_low, choice_high, n_choice_grid, type="exp")
 k_grid = discretize_choices(choice_low, choice_high, n_choice_grid, type="exp")
-# z_grid is NOT built module-level here — it is rebuilt per sigma_eps trial.
+z_grid, _, Pi = discretize_productivity(rho, sigma_eps, n_prod_grid)
 
 calib_path = os.path.join(_DIR, "data", "calibrated_investment_params.csv")
 if not os.path.isfile(calib_path):
@@ -84,25 +80,25 @@ _cal = pd.read_csv(calib_path)
 alpha_a_cal = float(_cal["alpha_a"].iloc[0])
 alpha_k_cal = float(_cal["alpha_k"].iloc[0])
 
-print("\nCalibrated params: alpha_a={:.6f}  alpha_k={:.6f}".format(alpha_a_cal, alpha_k_cal))
+print("\nCalibrated params: alpha_a={:.6f}  alpha_k={:.6f}".format(alpha_a_cal, alpha_k_cal), flush=True)
 
 _params_dict = dict(
-    exit_rate=exit_rate, sigma=sigma_fixed, alpha_a=alpha_a_cal, alpha_k=alpha_k_cal,
-    z_k=1.0, fixed_cost=0.0, gamma_k=gamma_k, gamma_l=gamma_l, rho=rho,
+    exit_rate=exit_rate, alpha_a=alpha_a_cal, alpha_k=alpha_k_cal,
+    z_k=1.0, fixed_cost=0.0, gamma_k=gamma_k, gamma_l=gamma_l,
 )
 
-# sigma_eps grid (varied parameter)
-sigma_eps_grid = np.linspace(SIGMA_EPS_LO, SIGMA_EPS_HI, N_SIGMA_EPS)
+# beta grid (varied parameter)
+beta_grid = np.linspace(BETA_LO, BETA_HI, N_BETA)
 
 # -----------------------------------------------------------------------------
-# Helper: make EqmParams for a given sigma_eps value
+# Helper: make EqmParams for a given beta value
 # -----------------------------------------------------------------------------
 
-def _make_params(sigma_eps_val, params_dict):
+def _make_params(beta_val, params_dict):
     return EqmParams(
         phi=0.0,
         entry_perc=params_dict["exit_rate"],
-        sigma=params_dict["sigma"],
+        beta=beta_val,
         alpha_a=params_dict["alpha_a"],
         alpha_k=params_dict["alpha_k"],
         z_k=params_dict["z_k"],
@@ -133,40 +129,35 @@ def interpolate_warm_starts(param_values, lo_sol, hi_sol):
 # Top-level worker (must be module-level for multiprocessing pickling)
 # -----------------------------------------------------------------------------
 
-def solve_single_sigma_eps(args):
+def solve_single_beta(args):
     """
-    Solve the steady-state equilibrium for one sigma_eps value.
-    Rebuilds z_grid and Pi per trial (sigma_eps changes the Rouwenhorst grid).
-    Returns (sigma_eps_val, eqm) or (sigma_eps_val, None) on failure.
+    Solve the steady-state equilibrium for one beta value.
+    Returns (beta_val, eqm) or (beta_val, None) on failure.
     pct_neg, ls_success, res_norm are stored directly in the eqm dict.
     """
-    sigma_eps_val, warm_start, params_dict = args
-
-    # Rebuild z_grid and Pi for this sigma_eps value
-    z_grid_t, _, Pi_t = discretize_productivity(params_dict["rho"], sigma_eps_val, n_prod_grid)
-
-    params = _make_params(sigma_eps_val, params_dict)
+    beta_val, warm_start, params_dict = args
+    params = _make_params(beta_val, params_dict)
     try:
         eqm = solve_ss_equilibrium_least_squares(
-            m_grid, k_grid, z_grid_t, Pi_t, params,
+            m_grid, k_grid, z_grid, Pi, params,
             start=warm_start, verbose=False,
         )
     except Exception as e:
-        print("  [FAIL] sigma_eps={:.4f}: {}".format(sigma_eps_val, e), flush=True)
-        return sigma_eps_val, None
+        print("  [FAIL] beta={:.4f}: {}".format(beta_val, e), flush=True)
+        return beta_val, None
 
     eqm["res_norm"] = float(np.linalg.norm(eqm.get("residuals", np.full(3, np.inf))))
-    pct_neg = pct_negative(m_grid, k_grid, z_grid_t, eqm)
+    pct_neg = pct_negative(m_grid, k_grid, z_grid, eqm)
 
     print(
-        "  sigma_eps={:.4f}: W={:.4f}  c={:.4f}  P_M={:.4f}  "
+        "  beta={:.4f}: W={:.4f}  c={:.4f}  P_M={:.4f}  "
         "pct_neg={:.2f}%  res={:.2e}  ok={}".format(
-            sigma_eps_val, eqm["W"], eqm["c_agg"], eqm["P_M"],
+            beta_val, eqm["W"], eqm["c_agg"], eqm["P_M"],
             pct_neg, eqm["res_norm"], eqm["ls_success"],
         ),
         flush=True,
     )
-    return sigma_eps_val, eqm
+    return beta_val, eqm
 
 # -----------------------------------------------------------------------------
 # Main
@@ -176,25 +167,21 @@ if __name__ == "__main__":
     multiprocessing.set_start_method("fork", force=True)
 
     os.makedirs(SOLVED_EQM_DIR, exist_ok=True)
-    out_path = os.path.join(SOLVED_EQM_DIR, "eqm_sigma_eps_path.pkl")
+    out_path = os.path.join(SOLVED_EQM_DIR, "eqm_beta_path.pkl")
 
     print("\n" + "=" * 60)
-    print("Sigma_eps scan: {} points in [{}, {}]".format(
-        N_SIGMA_EPS, SIGMA_EPS_LO, SIGMA_EPS_HI))
-    print("  phi=0, sigma={:.4f}, alpha_a={:.4f}, alpha_k={:.4f}".format(
-        sigma_fixed, alpha_a_cal, alpha_k_cal))
+    print("Beta scan: {} points in [{}, {}]".format(N_BETA, BETA_LO, BETA_HI))
+    print("  phi=0, alpha_a={:.4f}, alpha_k={:.4f}".format(alpha_a_cal, alpha_k_cal))
     print("=" * 60)
 
     # ---- Numba JIT warmup (BEFORE Pool creation) ----
-    # Use base-period sigma_eps_0 to build a valid z_grid for compilation.
     print("\nNumba JIT warmup — compiling @njit functions on tiny 3x3x3 grid...")
     _tiny_m  = m_grid[:3].copy()
     _tiny_k  = k_grid[:3].copy()
-    _tiny_z_full, _, _tiny_Pi_full = discretize_productivity(rho, sigma_eps_0, n_prod_grid)
-    _tiny_z  = _tiny_z_full[:3].copy()
-    _tiny_Pi = _tiny_Pi_full[:3, :3].copy()
+    _tiny_z  = z_grid[:3].copy()
+    _tiny_Pi = Pi[:3, :3].copy()
     _tiny_Pi = _tiny_Pi / _tiny_Pi.sum(axis=1, keepdims=True)
-    _warmup_params = _make_params(sigma_eps_grid[0], _params_dict)
+    _warmup_params = _make_params(beta_grid[0], _params_dict)
     try:
         solve_ss_equilibrium_least_squares(
             _tiny_m, _tiny_k, _tiny_z, _tiny_Pi, _warmup_params,
@@ -206,57 +193,53 @@ if __name__ == "__main__":
     print("Numba JIT warmup complete.\n")
 
     # ---- Solve anchor equilibria serially ----
-    _z_lo, _, _Pi_lo = discretize_productivity(rho, sigma_eps_grid[0], n_prod_grid)
-    print("Solving anchor: sigma_eps_lo = {:.4f}...".format(sigma_eps_grid[0]))
+    print("Solving anchor: beta_lo = {:.4f}...".format(beta_grid[0]))
     lo_sol = solve_ss_equilibrium_least_squares(
-        m_grid, k_grid, _z_lo, _Pi_lo,
-        _make_params(sigma_eps_grid[0], _params_dict),
+        m_grid, k_grid, z_grid, Pi, _make_params(beta_grid[0], _params_dict),
         start=np.array([1.0, 1.0, 1.0]), verbose=False,
     )
     print("  lo anchor: W={:.4f}  c={:.4f}  P_M={:.4f}".format(
         lo_sol["W"], lo_sol["c_agg"], lo_sol["P_M"]))
 
-    _z_hi, _, _Pi_hi = discretize_productivity(rho, sigma_eps_grid[-1], n_prod_grid)
-    print("Solving anchor: sigma_eps_hi = {:.4f}...".format(sigma_eps_grid[-1]))
+    print("Solving anchor: beta_hi = {:.4f}...".format(beta_grid[-1]))
     hi_sol = solve_ss_equilibrium_least_squares(
-        m_grid, k_grid, _z_hi, _Pi_hi,
-        _make_params(sigma_eps_grid[-1], _params_dict),
+        m_grid, k_grid, z_grid, Pi, _make_params(beta_grid[-1], _params_dict),
         start=np.array([lo_sol["c_agg"], lo_sol["W"], lo_sol["P_M"]]), verbose=False,
     )
     print("  hi anchor: W={:.4f}  c={:.4f}  P_M={:.4f}\n".format(
         hi_sol["W"], hi_sol["c_agg"], hi_sol["P_M"]))
 
     # ---- Interpolate warm starts ----
-    warm_starts = interpolate_warm_starts(sigma_eps_grid, lo_sol, hi_sol)
+    warm_starts = interpolate_warm_starts(beta_grid, lo_sol, hi_sol)
 
     # ---- Build task args ----
     task_args = [
-        (sigma_eps_grid[i], warm_starts[sigma_eps_grid[i]], _params_dict)
-        for i in range(N_SIGMA_EPS)
+        (beta_grid[i], warm_starts[beta_grid[i]], _params_dict)
+        for i in range(N_BETA)
     ]
 
     # ---- Parallel solve ----
-    n_workers = min(N_SIGMA_EPS, N_WORKERS or os.cpu_count())
-    print("Launching Pool with {} workers for {} sigma_eps values...\n".format(
-        n_workers, N_SIGMA_EPS))
+    n_workers = min(N_BETA, N_WORKERS or os.cpu_count() or 20)
+    print("Launching Pool with {} workers for {} beta values...\n".format(
+        n_workers, N_BETA))
     with multiprocessing.Pool(processes=n_workers) as pool:
-        results = pool.map(solve_single_sigma_eps, task_args)
+        results = pool.map(solve_single_beta, task_args)
 
     # ---- Save output ----
     eqms_all = {val: eqm for val, eqm in results if eqm is not None}
     failed = [val for val, eqm in results if eqm is None]
     if failed:
         print("\nWARNING: {} points failed to converge: {}".format(
-            len(failed), ["{:.4f}".format(s) for s in failed]))
+            len(failed), ["{:.4f}".format(b) for b in failed]))
 
     with open(out_path, "wb") as f:
         pickle.dump(eqms_all, f)
 
     print("\nSaved {} equilibria → {}".format(len(eqms_all), out_path))
-    print("\n{:>12}  {:>8}  {:>8}  {:>8}  {:>8}  {:>8}".format(
-        "sigma_eps", "W", "c_agg", "P_M", "pct_neg", "ok"))
+    print("\n{:>10}  {:>8}  {:>8}  {:>8}  {:>8}  {:>8}".format(
+        "beta", "W", "c_agg", "P_M", "pct_neg", "ok"))
     for val, eqm in sorted(eqms_all.items()):
-        print("  {:10.4f}  {:8.4f}  {:8.4f}  {:8.4f}  {:7.2f}%  {}".format(
+        print("  {:8.4f}  {:8.4f}  {:8.4f}  {:8.4f}  {:7.2f}%  {}".format(
             val,
             eqm["W"], eqm["c_agg"], eqm["P_M"],
             eqm.get("pct_neg", float("nan")),

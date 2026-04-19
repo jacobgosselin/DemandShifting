@@ -27,16 +27,25 @@ from ss_solver.integrate_dist import pct_negative
 # -----------------------------------------------------------------------------
 
 N_WORKERS = None        # None = use all CPUs; set to 1 for local single-threaded runs
-N_GRID    = 100         # grid size for m, k (reduce to e.g. 50 for fast test runs)
 N_SIGMA   = 20          # number of sigma grid points to scan
 SIGMA_LO  = 1.1
 SIGMA_HI  = 15.0
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
+
+# --- Grid configuration ---
+import configparser as _cp
+_gcfg = _cp.ConfigParser()
+_gcfg.read_string("[grid]\n" + open(os.path.join(_DIR, "grid_config.txt")).read())
+choice_low    = float(_gcfg["grid"]["choice_low"])
+choice_high   = float(_gcfg["grid"]["choice_high"])
+n_choice_grid = int(_gcfg["grid"]["n_choice_grid"])
+n_prod_grid   = int(_gcfg["grid"]["n_prod_grid"])
+
 MAIN_DIR = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings"
 QUEST_DIR = "./data"
 # SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
-SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data", "clean")
+SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data")
 
 # -----------------------------------------------------------------------------
 # Module-level setup (inherited by worker processes via fork)
@@ -57,9 +66,9 @@ print("  rho       = {:.6f}".format(rho), flush=True)
 print("  sigma_eps = {:.6f}".format(sigma_eps), flush=True)
 print("  exit_rate = {:.6f}".format(exit_rate), flush=True)
 
-m_grid = discretize_choices(1e-3, 5, N_GRID, type="exp")
-k_grid = discretize_choices(1e-3, 5, N_GRID, type="exp")
-z_grid, _, Pi = discretize_productivity(rho, sigma_eps, 15)
+m_grid = discretize_choices(choice_low, choice_high, n_choice_grid, type="exp")
+k_grid = discretize_choices(choice_low, choice_high, n_choice_grid, type="exp")
+z_grid, _, Pi = discretize_productivity(rho, sigma_eps, n_prod_grid)
 
 calib_path = os.path.join(_DIR, "data", "calibrated_investment_params.csv")
 if not os.path.isfile(calib_path):
@@ -210,7 +219,7 @@ if __name__ == "__main__":
     ]
 
     # ---- Parallel solve ----
-    n_workers = min(N_SIGMA, N_WORKERS or os.cpu_count() or 20)
+    n_workers = min(N_SIGMA, N_WORKERS or os.cpu_count())
     print("Launching Pool with {} workers for {} sigma values...\n".format(
         n_workers, N_SIGMA))
     with multiprocessing.Pool(processes=n_workers) as pool:

@@ -24,13 +24,22 @@ from ss_solver.integrate_dist import pct_negative as _pct_neg
 # Configuration
 # -----------------------------------------------------------------------------
 
-N_WORKERS = 1          # None = use all CPUs; set to 1 for local single-threaded runs
+N_WORKERS = None         # None = use all CPUs; set to 1 for local single-threaded runs
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
+
+# --- Grid configuration ---
+import configparser as _cp
+_gcfg = _cp.ConfigParser()
+_gcfg.read_string("[grid]\n" + open(os.path.join(_DIR, "grid_config.txt")).read())
+choice_low    = float(_gcfg["grid"]["choice_low"])
+choice_high   = float(_gcfg["grid"]["choice_high"])
+n_choice_grid = int(_gcfg["grid"]["n_choice_grid"])
+n_prod_grid   = int(_gcfg["grid"]["n_prod_grid"])
 MAIN_DIR = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings"
 QUEST_DIR = "./"
-SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
-N_GRID = 100 # Grid size constant (reduce to e.g. 50 for fast test runs)
+# SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
+SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data")
 
 # -----------------------------------------------------------------------------
 # Module-level setup: parameters and grids
@@ -55,8 +64,8 @@ print("  sigma_eps   = {:.6f}".format(sigma_eps))
 print("  sigma_fixed = {:.6f}  (fixed = mu/(mu-1) from ACF markup)".format(sigma_fixed))
 print("  exit_rate   = {:.6f}".format(exit_rate))
 
-m_grid = discretize_choices(1e-3, 5, N_GRID, type="exp")
-k_grid = discretize_choices(1e-3, 5, N_GRID, type="exp")
+m_grid = discretize_choices(choice_low, choice_high, n_choice_grid, type="exp")
+k_grid = discretize_choices(choice_low, choice_high, n_choice_grid, type="exp")
 
 # Load calibrated params (alpha_a, alpha_k)
 fixed_cost_cal = 0.0
@@ -73,7 +82,7 @@ print(
     f"Calibrated params: alpha_a={alpha_a_cal:.4f}, alpha_k={alpha_k_cal:.4f}, "
 )
 print(f"Production function (fixed): gamma_k={gamma_k:.4f}, gamma_l={gamma_l:.4f}")
-z_grid, pi, Pi = discretize_productivity(rho, sigma_eps, 15)
+z_grid, pi, Pi = discretize_productivity(rho, sigma_eps, n_prod_grid)
 
 # Load phi path from calibration (phi_path.csv)
 _phi_df    = pd.read_csv(os.path.join(_DIR, "data", "phi_path.csv"))
@@ -221,7 +230,7 @@ if __name__ == "__main__":
     ]
 
     # ---- Parallel solve ----
-    n_workers = min(len(phi_track_values), N_WORKERS or os.cpu_count() or 20)
+    n_workers = min(len(phi_track_values), N_WORKERS or os.cpu_count())
     print(f"Launching Pool with {n_workers} workers for {len(phi_track_values)} phi values...\n")
     with multiprocessing.Pool(processes=n_workers) as pool:
         results = pool.map(solve_single_phi, task_args)

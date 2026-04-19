@@ -1,14 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=demandshift_phi
+#SBATCH --job-name=demandshift_run_alt_paths
 #SBATCH -A p32386
 #SBATCH --partition=normal
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=20
 #SBATCH --mem=32G
-#SBATCH --time=4:00:00
-#SBATCH --output=logs/phi_%j.out
-#SBATCH --error=logs/phi_%j.err
+#SBATCH --time=12:00:00
+#SBATCH --output=logs/run_alt_paths_%j.out
+#SBATCH --error=logs/run_alt_paths_%j.err
 
 module purge
 module load mamba
@@ -24,4 +24,8 @@ export NUMBA_NUM_THREADS=1
 mkdir -p logs
 mkdir -p solved_eqm
 cd $SLURM_SUBMIT_DIR
-/home/jtg3519/.conda/envs/demandshifting/bin/python3 run_phi_path.py
+/home/jtg3519/.conda/envs/demandshifting/bin/python3 -u run_phi_path.py
+/home/jtg3519/.conda/envs/demandshifting/bin/python3 -u run_sigma_path.py
+/home/jtg3519/.conda/envs/demandshifting/bin/python3 -u run_sigma_eps_path.py
+/home/jtg3519/.conda/envs/demandshifting/bin/python3 -u run_beta_path.py
+

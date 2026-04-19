@@ -13,6 +13,15 @@ from scipy.optimize import brentq
 
 _DIR = os.path.dirname(__file__)
 
+# --- Grid configuration ---
+import configparser as _cp
+_gcfg = _cp.ConfigParser()
+_gcfg.read_string("[grid]\n" + open(os.path.join(_DIR, "grid_config.txt")).read())
+choice_low    = float(_gcfg["grid"]["choice_low"])
+choice_high   = float(_gcfg["grid"]["choice_high"])
+n_choice_grid = int(_gcfg["grid"]["n_choice_grid"])
+n_prod_grid   = int(_gcfg["grid"]["n_prod_grid"])
+
 struct_params = pd.read_csv(os.path.join(_DIR, "data", "structural_parameters.csv"))
 
 # Fixed structural parameters (from ACF estimation and markup inversion)
@@ -64,9 +73,9 @@ print("\nNormalization: phi_0 = {:.4f}  (base period)".format(phi_0))
 
 from ss_solver.solve_vf import discretize_productivity, discretize_choices
 
-m_grid = discretize_choices(1e-3, 5, 100, type="exp")
-k_grid = discretize_choices(1e-3, 5, 100, type="exp")
-z_grid, _, Pi = discretize_productivity(rho, sigma_eps, 15)
+m_grid = discretize_choices(choice_low, choice_high, n_choice_grid, type="exp")
+k_grid = discretize_choices(choice_low, choice_high, n_choice_grid, type="exp")
+z_grid, _, Pi = discretize_productivity(rho, sigma_eps, n_prod_grid)
 
 # -----------------------------------------------------------------------------
 # Helper: solve equilibrium with convergence check
@@ -154,7 +163,7 @@ if __name__ == '__main__':
     phi_lo_global = 0
     phi_hi_global = 0.75
 
-    n_workers = multiprocessing.cpu_count()
+    n_workers = max(multiprocessing.cpu_count(), len(years))
     # n_workers = 2
 
     args_list = [

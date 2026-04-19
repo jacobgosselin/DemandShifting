@@ -15,6 +15,15 @@ from scipy.optimize import differential_evolution, least_squares
 
 _DIR = os.path.dirname(__file__)
 
+# --- Grid configuration ---
+import configparser as _cp
+_gcfg = _cp.ConfigParser()
+_gcfg.read_string("[grid]\n" + open(os.path.join(_DIR, "grid_config.txt")).read())
+choice_low    = float(_gcfg["grid"]["choice_low"])
+choice_high   = float(_gcfg["grid"]["choice_high"])
+n_choice_grid = int(_gcfg["grid"]["n_choice_grid"])
+n_prod_grid   = int(_gcfg["grid"]["n_prod_grid"])
+
 struct_params = pd.read_csv(os.path.join(_DIR, "data", "structural_parameters.csv"))
 
 # Fixed structural parameters (from ACF estimation and markup inversion)
@@ -55,11 +64,11 @@ print("Fixed:         sigma = {:.6f}  (from structural_parameters)".format(sigma
 
 from ss_solver.solve_vf import discretize_productivity, discretize_choices
 
-m_grid = discretize_choices(1e-3, 5, 100, type="exp")
-k_grid = discretize_choices(1e-3, 5, 100, type="exp")
+m_grid = discretize_choices(choice_low, choice_high, n_choice_grid, type="exp")
+k_grid = discretize_choices(choice_low, choice_high, n_choice_grid, type="exp")
 
 # z_grid is fixed (rho, sigma_eps not calibrated)
-z_grid, _, Pi = discretize_productivity(rho, sigma_eps, 15)
+z_grid, _, Pi = discretize_productivity(rho, sigma_eps, n_prod_grid)
 
 # -----------------------------------------------------------------------------
 # Load initial guesses from previous calibration (or use defaults)
@@ -214,6 +223,18 @@ if __name__ == '__main__':
         updating='deferred',
         disp=True
     )
+
+    # try a least-squares optimization
+    # result = least_squares(
+    #     obj_base,
+    #     x0=[alpha_a_init, alpha_k_init],
+    #     bounds=(_BOUNDS_LOW, _BOUNDS_HIGH),
+    #     max_nfev=50,
+    #     ftol=1e-6,
+    #     xtol=1e-6,
+    #     gtol=1e-6,
+    #     verbose=2,
+    # )
 
     alpha_a_cal = float(result.x[0])
     alpha_k_cal = float(result.x[1])

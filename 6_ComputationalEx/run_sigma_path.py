@@ -28,7 +28,7 @@ from ss_solver.integrate_dist import pct_negative
 
 N_WORKERS = None        # None = use all CPUs; set to 1 for local single-threaded runs
 N_SIGMA   = 20          # number of sigma grid points to scan
-SIGMA_LO  = 1.1
+SIGMA_LO  = 1.5
 SIGMA_HI  = 15.0
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
@@ -43,7 +43,7 @@ n_choice_grid = int(_gcfg["grid"]["n_choice_grid"])
 n_prod_grid   = int(_gcfg["grid"]["n_prod_grid"])
 
 MAIN_DIR = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings"
-QUEST_DIR = "./data"
+QUEST_DIR = "."
 # SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
 SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data")
 

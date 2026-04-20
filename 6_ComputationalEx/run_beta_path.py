@@ -43,9 +43,9 @@ n_choice_grid = int(_gcfg["grid"]["n_choice_grid"])
 n_prod_grid   = int(_gcfg["grid"]["n_prod_grid"])
 
 MAIN_DIR = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings"
-QUEST_DIR = "./data"
+QUEST_DIR = "."
 # SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
-SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data", "clean")
+SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data")
 
 # -----------------------------------------------------------------------------
 # Module-level setup (inherited by worker processes via fork)

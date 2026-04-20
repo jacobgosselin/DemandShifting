@@ -26,10 +26,7 @@ palette_3 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 3)]
 from ss_solver.integrate_dist import (
     pct_negative, pct_negative_income, est_dist, est_sd,
     median_adv_ratio, median_inv_ratio, median_cogs_ratio,
-    median_earnings, mean_earnings,
-    agg_capital_stock, sales_wtd_productivity, agg_labor_shares,
-    avg_firm_earnings_path, cohort_neg_path,
-    avg_neg_spell_cohort,
+    median_earnings, mean_earnings, avg_neg_spell_cohort
 )
 from ss_solver.prod_fncts import *
 
@@ -336,6 +333,58 @@ plt.legend(fontsize=16)
 plt.tick_params(axis="both", which="major", labelsize=16)
 plt.grid(True, alpha=0.3)
 _save("pct_neg_ebitda_vs_income_by_year.pdf")
+
+# combine Figure B, E1, and C into a 6X2 grid of subplots (in that order)
+fig, axes = plt.subplots(3, 2, figsize=(16, 24))
+fig.subplots_adjust(hspace=0.25, wspace=0.25)
+axes[0, 0].plot(years, emp_df["avg_neg_spell"], "o-", linewidth=3, markersize=10, color="black")
+axes[0, 0].set_xlabel("Year")
+axes[0, 0].set_ylabel("")
+axes[0, 0].set_title("Avg. Neg. Spell Length (Data)")
+axes[0, 0].set_ylim(0, 5)
+axes[0, 0].grid(True, alpha=0.3)
+axes[0, 1].plot(years, avg_neg_vals, "o-", linewidth=3, markersize=10, color="black")
+axes[0, 1].set_xlabel("Year")
+axes[0, 1].set_ylabel("")
+axes[0, 1].set_title("Avg. Neg. Spell Length (Model)")
+axes[0, 1].set_ylim(0, 5)
+axes[0, 1].grid(True, alpha=0.3)
+axes[1, 0].plot(years, emp_df["log_sd_sales_norm"],    "o-", linewidth=3, markersize=10, label="Log SD Sales",    color=palette_2[0])
+axes[1, 0].plot(years, emp_df["log_sd_earnings_norm"], "s-", linewidth=3, markersize=10, label="Log SD Earnings", color=palette_2[1])
+axes[1, 0].set_ylim(-0.4, 1.2)
+axes[1, 0].set_xlabel("Year")
+axes[1, 0].set_ylabel("")
+axes[1, 0].set_title("Std. Dev. (Data, Log Change)")
+axes[1, 0].grid(True, alpha=0.3)
+axes[1, 0].legend(fontsize=16)
+axes[1, 1].plot(years, sd_sales_vals,    "o-", linewidth=3, markersize=10, label="Log SD Sales",    color=palette_2[0])
+axes[1, 1].plot(years, sd_earnings_vals, "s-", linewidth=3, markersize=10, label="Log SD Earnings", color=palette_2[1])
+axes[1, 1].set_ylim(-0.4, 1.2)
+axes[1, 1].set_xlabel("Year")
+axes[1, 1].set_ylabel("")
+axes[1, 1].set_title("Std. Dev. (Model, Log Change)")
+axes[1, 1].grid(True, alpha=0.3)
+axes[1, 1].legend(fontsize=16)
+axes[2, 0].plot(years, emp_df["med_sga_sale"],  "o-", linewidth=3, markersize=8, label="SG&A/Rev",  color=palette_3[0])
+axes[2, 0].plot(years, emp_df["med_cogs_sale"], "s-", linewidth=3, markersize=8, label="COGS/Rev",  color=palette_3[1])
+axes[2, 0].plot(years, emp_df["med_capx_sale"], "^-", linewidth=3, markersize=8, label="CapEx/Rev", color=palette_3[2])
+axes[2, 0].set_xlabel("Year")
+axes[2, 0].set_ylabel("")
+axes[2, 0].set_title("Median Spending Ratios (Data)")
+axes[2, 0].grid(True, alpha=0.3)
+axes[2, 0].set_ylim(0, 1)
+axes[2, 0].legend(fontsize=16)
+axes[2, 1].plot(years, med_adv_all,  "o-", linewidth=3, markersize=8, label="Adv/Rev",  color=palette_3[0])
+axes[2, 1].plot(years, med_cogs_all, "s-", linewidth=3, markersize=8, label="COGS/Rev", color=palette_3[1])
+axes[2, 1].plot(years, med_inv_all,  "^-", linewidth=3, markersize=8, label="Inv/Rev",  color=palette_3[2])
+axes[2, 1].set_xlabel("Year")
+axes[2, 1].set_ylabel("")   
+axes[2, 1].set_title("Median Spending Ratios (Model)")
+axes[2, 1].grid(True, alpha=0.3)
+axes[2, 1].set_ylim(0, 1)
+axes[2, 1].legend(fontsize=16)
+_save("combined_trends_6panel.pdf", fig, close=True)
+
 
 # -----------------------------------------------------------------------------
 # Paper Stats

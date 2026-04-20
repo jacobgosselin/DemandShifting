@@ -15,7 +15,8 @@ load("data/clean/analysis_data.RData")
 theme_common <- theme_minimal(base_size = 24) +
   theme(
     text = element_text(family = "serif", size = 24),
-    legend.position = "bottom"
+    legend.position = "bottom",
+    legend.text = element_text(size = 24)
   )
 
 # a. Plot cost ratios over time (all firms) ------------------------------

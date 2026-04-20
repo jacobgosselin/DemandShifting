@@ -22,7 +22,8 @@ cat("Number of observations:", num_observations, "\n")
 theme_common_2panel <- theme_minimal(base_size = 24) +
   theme(
     text = element_text(family = "serif", size = 24),
-    legend.position = "bottom"
+    legend.position = "bottom",
+    legend.text = element_text(size = 24)
   )
 
 theme_common <- theme_minimal(base_size = 18) +
@@ -339,6 +340,26 @@ ggplot(top_decile_sales_long, aes(x = date, y = log_change, color = percentile, 
 
 ggsave("figures/empirical/top_quantile_sales_over_time.pdf", width = 8, height = 6)
 
+top_quantiles_sales <- ggplot(top_decile_sales_long, aes(x = date, y = log_change, color = percentile, group = percentile)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+  scale_color_manual(
+    values = setNames(palette_4,
+                      c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")),
+    labels = c("log_change_p75" = "|P75 - Median|", "log_change_p90" = "|P90 - Median|", "log_change_p95" = "|P95 - Median|", "log_change_p99" = "|P99 - Median|"),
+    breaks = c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")
+  ) +
+  labs(
+    title = "Top Quantiles of Sales",
+    subtitle = "",
+    x = "Year",
+    y = "Log Change from 1980",
+    color = ""
+  ) +
+  theme_common_2panel
+
 # 3c. Bottom percentiles of sales over time -------------------
 
 bottom_quantile_sales_measures <- analysis_data %>%
@@ -397,6 +418,26 @@ ggplot(bottom_quantile_sales_long, aes(x = date, y = log_change, color = percent
   theme_common
 
 ggsave("figures/empirical/bottom_quantile_sales_over_time.pdf", width = 8, height = 6)
+
+bottom_quantiles_sales <- ggplot(bottom_quantile_sales_long, aes(x = date, y = log_change, color = percentile, group = percentile)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+  scale_color_manual(
+    values = setNames(palette_4,
+                      c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")),
+    labels = c("log_change_p25" = "|Median - P25|", "log_change_p10" = "|Median - P10|", "log_change_p5" = "|Median - P5|", "log_change_p1" = "|Median - P1|"),
+    breaks = c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")
+  ) +
+  labs(
+    title = "Bottom Quantiles of Sales",
+    subtitle = "",
+    x = "Year",
+    y = "Log Change from 1980",
+    color = ""
+  ) +
+  theme_common_2panel
 
 # 4a. Plot log change in SD of earnings over time -------------------------
 
@@ -489,6 +530,26 @@ ggplot(top_decile_long, aes(x = date, y = log_change, color = percentile, group 
 
 ggsave("figures/empirical/top_quantile_earnings_over_time.pdf", width = 8, height = 6)
 
+top_quantiles_earnings <- ggplot(top_decile_long, aes(x = date, y = log_change, color = percentile, group = percentile)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+  scale_color_manual(
+    values = setNames(palette_4,
+                      c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")),
+    labels = c("log_change_p75" = "|P75 - Median|", "log_change_p90" = "|P90 - Median|", "log_change_p95" = "|P95 - Median|", "log_change_p99" = "|P99 - Median|"),
+    breaks = c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")
+  ) +
+  labs(
+    title = "Top Quantiles of EBITDA",
+    subtitle = "",
+    x = "Year",
+    y = "Log Change from 1980",
+    color = ""
+  ) +
+  theme_common_2panel
+
 # 4c. Bottom percentiles of earnings over time -------------------
 
 bottom_quantile_measures <- analysis_data %>%
@@ -544,12 +605,38 @@ ggplot(bottom_quantile_long, aes(x = date, y = log_change, color = percentile, g
     y = "Log Change from 1980",
     color = ""
   ) +
-  theme_common
+  theme_common_2panel
 
 ggsave("figures/empirical/bottom_quantile_earnings_over_time.pdf", width = 8, height = 6)
 
+bottom_quantiles_earnings <- ggplot(bottom_quantile_long, aes(x = date, y = log_change, color = percentile, group = percentile)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+  scale_color_manual(
+    values = setNames(palette_4,
+                      c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")),
+    labels = c("log_change_p25" = "|Median - P25|", "log_change_p10" = "|Median - P10|", "log_change_p5" = "|Median - P5|", "log_change_p1" = "|Median - P1|"),
+    breaks = c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")
+  ) +
+  labs(
+    title = "Bottom Quantiles of EBITDA",
+    subtitle = "",
+    x = "Year",
+    y = "Log Change from 1980",
+    color = ""
+  ) +
+  theme_common_2panel
 
-# 4d: Joint plot of log sd earnings + log sd sales over time ----------------
+# 4d: Combined plot of quantiles of earnings and sales ----------------
+
+ggarrange(top_quantiles_sales, top_quantiles_earnings, ncol = 2, nrow = 1, common.legend = TRUE, legend = "bottom")
+ggsave("figures/empirical/top_quantiles_earnings_sales.pdf", width = 16, height = 9)
+ggarrange(bottom_quantiles_sales, bottom_quantiles_earnings, ncol = 2, nrow = 1, common.legend = TRUE, legend = "bottom")
+ggsave("figures/empirical/bottom_quantiles_earnings_sales.pdf", width = 16, height = 9)
+
+# 4e: Joint plot of log sd earnings + log sd sales over time ----------------
 
 sd_joint <- bind_rows(
   sd_by_year       %>% mutate(series = "EBITDA"),

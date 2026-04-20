@@ -26,7 +26,7 @@ palette_3 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 3)]
 from ss_solver.integrate_dist import (
     pct_negative, pct_negative_income, est_dist, est_sd,
     median_adv_ratio, median_inv_ratio, median_cogs_ratio,
-    median_earnings, mean_earnings, avg_neg_spell_cohort
+    median_earnings, mean_earnings, avg_firm_earnings_path, avg_neg_spell_cohort
 )
 from ss_solver.prod_fncts import *
 
@@ -203,7 +203,7 @@ ax1.set_subplotspec(gs[0])
 ax2.set_subplotspec(gs[1])
 fig.set_size_inches(16, 8)
 fig.tight_layout()
-_save("avg_neg_periods_by_year.pdf", fig, close=True)
+# _save("avg_neg_periods_by_year.pdf", fig, close=True)
 
 # Figure C: Two-panel — empirical vs model cost ratios
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
@@ -238,7 +238,7 @@ ax2.set_subplotspec(gs[1])
 fig.set_size_inches(16, 8)
 fig.tight_layout(rect=[0, 0.06, 1, 1])
 fig.legend(handles_c, labels_c, fontsize=14, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0))
-_save("cost_ratios_data_vs_model.pdf", fig, close=True)
+# _save("cost_ratios_data_vs_model.pdf", fig, close=True)
 
 # Figure D: Two-panel — empirical vs model log SD earnings
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 9))
@@ -263,7 +263,7 @@ ax1.set_subplotspec(gs[0])
 ax2.set_subplotspec(gs[1])
 fig.set_size_inches(16, 9)
 fig.tight_layout()
-_save("sd_earnings_data_vs_model.pdf", fig, close=True)
+# _save("sd_earnings_data_vs_model.pdf", fig, close=True)
 
 # Figure E: Two-panel — empirical vs model log SD sales
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
@@ -288,7 +288,7 @@ ax1.set_subplotspec(gs[0])
 ax2.set_subplotspec(gs[1])
 fig.set_size_inches(16, 8)
 fig.tight_layout()
-_save("sd_sales_data_vs_model.pdf", fig, close=True)
+# _save("sd_sales_data_vs_model.pdf", fig, close=True)
 
 # Figure E1: Two-panel overlay — Log SD Sales + Log SD Earnings (Change from 1980)
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
@@ -321,7 +321,7 @@ ax2.set_subplotspec(gs[1])
 fig.set_size_inches(16, 8)
 fig.tight_layout(rect=[0, 0.06, 1, 1])
 fig.legend(handles_e1, labels_e1, fontsize=14, loc="lower center", ncol=2, bbox_to_anchor=(0.5, 0))
-_save("sd_sales_earnings_overlay.pdf", fig, close=True)
+# _save("sd_sales_earnings_overlay.pdf", fig, close=True)
 
 # Figure F: Overlay — % negative EBITDA vs % negative income (model)
 plt.figure(figsize=(10, 10))
@@ -383,7 +383,20 @@ axes[2, 1].set_title("Median Spending Ratios (Model)")
 axes[2, 1].grid(True, alpha=0.3)
 axes[2, 1].set_ylim(0, 1)
 axes[2, 1].legend(fontsize=16)
-_save("combined_trends_6panel.pdf", fig, close=True)
+_save("combined_trends_paper.pdf", fig, close=True)
+
+# Figure G: Avg firm earning path for 1980 vs 2019 cohort (model)
+earning_path_1980 = avg_firm_earnings_path(eqms[1980], eqms[1980]["z_grid"], T=50)
+earning_path_2019 = avg_firm_earnings_path(eqms[2019], eqms[2019]["z_grid"], T=50)
+plt.figure(figsize=(8, 6))
+plt.plot(range(50), earning_path_1980, "o-", linewidth=3, markersize=5, label="1980 Cohort", color=palette_2[0])
+plt.plot(range(50), earning_path_2019, "s-", linewidth=3, markersize=5, label="2019 Cohort", color=palette_2[1])
+plt.xlabel("Years Since Entry")
+plt.ylabel("Earnings")
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+_save("avg_earnings_path_1980_vs_2019.pdf")
 
 
 # -----------------------------------------------------------------------------

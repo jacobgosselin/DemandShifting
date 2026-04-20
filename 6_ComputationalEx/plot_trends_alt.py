@@ -61,8 +61,6 @@ _default_figures = os.path.join(
     "My Drive/research_ideas/negative_earnings/figures/quantitative",
 )
 FIGURES_DIR = os.environ.get("DEMANDSHIFT_FIGURES_DIR", _default_figures)
-ALT_FIGURES_DIR = os.path.join(FIGURES_DIR, "alt_eqm_figs")
-os.makedirs(ALT_FIGURES_DIR, exist_ok=True)
 
 # -----------------------------------------------------------------------------
 # Scan configurations
@@ -73,10 +71,22 @@ os.makedirs(ALT_FIGURES_DIR, exist_ok=True)
 
 SCANS = [
     {
+        "name":  "phi",
+        "pkl":   "eqm_phi_alt_path.pkl",
+        "attr":  "phi",
+        "label": r"$\phi$",
+    },
+    {
         "name":  "sigma",
         "pkl":   "eqm_sigma_path.pkl",
         "attr":  "sigma",
         "label": r"$\sigma$",
+    },
+    {
+        "name":  "beta",
+        "pkl":   "eqm_beta_path.pkl",
+        "attr":  "beta",
+        "label": r"$\beta$",
     },
     # {
     #     "name":  "sigma_eps",
@@ -84,12 +94,6 @@ SCANS = [
     #     "attr":  None,   # not stored in EqmParams; use dict key
     #     "label": r"$\sigma_\varepsilon$",
     # },
-    {
-        "name":  "beta",
-        "pkl":   "eqm_beta_path.pkl",
-        "attr":  "beta",
-        "label": r"$\beta$",
-    },
 ]
 
 # -----------------------------------------------------------------------------
@@ -97,37 +101,28 @@ SCANS = [
 # -----------------------------------------------------------------------------
 
 plt.rcParams.update({
-    'font.size': 24,
-    'axes.labelsize': 24,
-    'axes.titlesize': 24,
-    'xtick.labelsize': 24,
-    'ytick.labelsize': 24,
-    'legend.fontsize': 24,
+    'font.size': 18,
+    'axes.labelsize': 18,
+    'axes.titlesize': 18,
+    'xtick.labelsize': 18,
+    'ytick.labelsize': 18,
+    'legend.fontsize': 18,
 })
 
 # -----------------------------------------------------------------------------
 # Save helper
 # -----------------------------------------------------------------------------
 
-def _save_alt(base_fname, param_name, fig=None, close=True):
-    stem, ext = os.path.splitext(base_fname)
-    fname = f"{stem}_{param_name}{ext}"
-    path = os.path.join(ALT_FIGURES_DIR, fname)
-    if fig is not None:
-        fig.savefig(path, dpi=150, bbox_inches="tight")
-        if close:
-            plt.close(fig)
-    else:
-        plt.savefig(path, dpi=150, bbox_inches="tight")
-        if close:
-            plt.close()
-    print(f"  Saved {path}")
-
 # -----------------------------------------------------------------------------
 # Main loop over scans
 # -----------------------------------------------------------------------------
 
-for scan in SCANS:
+n_scans = len(SCANS)
+fig, axes = plt.subplots(n_scans, 4, figsize=(16, 12))
+if n_scans == 1:
+    axes = axes[np.newaxis, :]
+
+for i, scan in enumerate(SCANS):
     pname  = scan["name"]
     plabel = scan["label"]
     pkl_path = os.path.join(SOLVED_EQM_DIR, scan["pkl"])
@@ -196,20 +191,20 @@ for scan in SCANS:
     # ------------------------------------------------------------------
     # Figures — single-axis model-only plots
     # ------------------------------------------------------------------
-
-    print(f"\n  Generating figures → {ALT_FIGURES_DIR}/")
-
     
-    fig, ((ax_a, ax_b), (ax_c, ax_d)) = plt.subplots(2, 2, figsize=(20, 16))
+    ax_a = axes[i, 0]
+    ax_b = axes[i, 1]
+    ax_c = axes[i, 2]
+    ax_d = axes[i, 3]
 
-    # Figure A: pct_neg vs param
+    # Panel A: pct_neg vs param
     ax_a.plot(param_vals, pct_neg_vals, "o-", linewidth=3, markersize=10, color="black")
     ax_a.set_xlabel(plabel)
     ax_a.set_ylabel("")
     ax_a.set_title("Percent of Firms with EBITDA < 0")
     ax_a.grid(True, alpha=0.3)
-   
-    # Figure B: model avg neg spell vs param
+
+    # Panel B: avg neg spell vs param
     ax_b.plot(param_vals, avg_neg_vals, "o-", linewidth=3, markersize=10, color="black")
     ax_b.set_xlabel(plabel)
     ax_b.set_ylabel("")
@@ -217,44 +212,30 @@ for scan in SCANS:
     ax_b.set_ylim(0, 5)
     ax_b.grid(True, alpha=0.3)
 
-    # Figure C: model cost ratios vs param
-    ax_c.plot(param_vals, med_adv_all,  "o-", linewidth=3, markersize=8, label="Adv/Rev",  color=palette_3[0])
-    ax_c.plot(param_vals, med_cogs_all, "s-", linewidth=3, markersize=8, label="COGS/Rev", color=palette_3[1])
-    ax_c.plot(param_vals, med_inv_all,  "^-", linewidth=3, markersize=8, label="Inv/Rev",  color=palette_3[2])
+    # Panel C: log SD sales + earnings vs param
+    ax_c.plot(param_vals, sd_sales_vals,    "o-", linewidth=3, markersize=10, label="Log SD Sales",    color=palette_2[0])
+    ax_c.plot(param_vals, sd_earnings_vals, "s-", linewidth=3, markersize=10, label="Log SD Earnings", color=palette_2[1])
+    ax_c.set_ylim(-0.4, 1.2)
     ax_c.set_xlabel(plabel)
     ax_c.set_ylabel("")
-    ax_c.set_title("Median Spending Ratios")
-    ax_c.grid(True, alpha=0.3)
+    ax_c.set_title("Std. Dev. (Log Change)")
     ax_c.legend(fontsize=16)
-    ax_c.set_ylim(0, 1)
+    ax_c.grid(True, alpha=0.3)
 
-    # Figure D: overlay log SD sales + earnings — model only
-    ax_d.plot(param_vals, sd_sales_vals,    "o-", linewidth=3, markersize=10, label="Log SD Sales",    color=palette_2[0])
-    ax_d.plot(param_vals, sd_earnings_vals, "s-", linewidth=3, markersize=10, label="Log SD Earnings", color=palette_2[1])
-    ax_d.set_ylim(-0.4, 1.2)
+    # Panel D: cost ratios vs param
+    ax_d.plot(param_vals, med_adv_all,  "o-", linewidth=3, markersize=8, label="Adv/Rev",  color=palette_3[0])
+    ax_d.plot(param_vals, med_cogs_all, "s-", linewidth=3, markersize=8, label="COGS/Rev", color=palette_3[1])
+    ax_d.plot(param_vals, med_inv_all,  "^-", linewidth=3, markersize=8, label="Inv/Rev",  color=palette_3[2])
     ax_d.set_xlabel(plabel)
     ax_d.set_ylabel("")
-    ax_d.set_title("Std. Dev. (Log Change)")
-    ax_d.legend(fontsize=16)
+    ax_d.set_title("Median Spending Ratios")
     ax_d.grid(True, alpha=0.3)
+    ax_d.legend(fontsize=16)
+    ax_d.set_ylim(0, 1)
 
-    # 2X2 grid of A B C D
-    fig.tight_layout()
-    _save_alt("all_trends_by_param.pdf", pname, fig)
 
-    # Figure F: pct_neg EBITDA vs pct_neg income — model, vs param
-    fig, ax = plt.subplots(figsize=(10, 8))
-    ax.plot(param_vals, pct_neg_vals,
-            "o-", linewidth=3, markersize=10, label="% Negative EBITDA",                   color=palette_2[0])
-    ax.plot(param_vals, pct_neg_income_vals,
-            "s-", linewidth=3, markersize=10, label="% Negative Income (net of dep. cost)", color=palette_2[1])
-    ax.set_xlabel(plabel)
-    ax.set_ylabel("Percent of Firms (%)")
-    ax.legend(fontsize=16)
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    _save_alt("pct_neg_ebitda_vs_income_by_param.pdf", pname, fig)
-
-    print(f"\n  Done with {pname} scan.")
-
-print(f"\nAll done. Figures saved to {ALT_FIGURES_DIR}/")
+fig.tight_layout()
+out_path = os.path.join(FIGURES_DIR, "alt_paths_combined.pdf")
+fig.savefig(out_path, dpi=150, bbox_inches="tight")
+plt.close(fig)
+print(f"\n  Saved combined figure → {out_path}")

@@ -76,6 +76,12 @@ SCANS = [
         "attr":  "phi",
         "label": r"$\phi$",
     },
+    # {
+    #     "name":  "phi_kunal",
+    #     "pkl":   "eqm_phi_Kunal_path.pkl",
+    #     "attr":  "phi",
+    #     "label": r"$\phi$ (Kunal)",
+    # },
     {
         "name":  "sigma",
         "pkl":   "eqm_sigma_path.pkl",

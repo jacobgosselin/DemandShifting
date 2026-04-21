@@ -26,7 +26,8 @@ from ss_solver.integrate_dist import pct_negative
 # Configuration
 # -----------------------------------------------------------------------------
 
-N_WORKERS = None        # None = use all CPUs; set to 1 for local single-threaded runs
+# N_WORKERS = None        # None = use all CPUs; set to 1 for local single-threaded runs
+N_WORKERS = 1
 N_PHI     = 20          # number of phi grid points to scan
 PHI_LO    = -0.5
 PHI_HI    = 0.5
@@ -39,13 +40,14 @@ _gcfg = _cp.ConfigParser()
 _gcfg.read_string("[grid]\n" + open(os.path.join(_DIR, "grid_config.txt")).read())
 choice_low    = float(_gcfg["grid"]["choice_low"])
 choice_high   = float(_gcfg["grid"]["choice_high"])
+# choice_high = 1e1 # set high for kunal test...
 n_choice_grid = int(_gcfg["grid"]["n_choice_grid"])
 n_prod_grid   = int(_gcfg["grid"]["n_prod_grid"])
 
 MAIN_DIR = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings"
 QUEST_DIR = "."
-# SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
-SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data")
+SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
+# SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data")
 
 # -----------------------------------------------------------------------------
 # Module-level setup (inherited by worker processes via fork)
@@ -142,7 +144,7 @@ def solve_single_phi(args):
     try:
         eqm = solve_ss_equilibrium_least_squares(
             m_grid, k_grid, z_grid, Pi, params,
-            start=warm_start, verbose=False,
+            start=warm_start, verbose=True,
         )
     except Exception as e:
         print("  [FAIL] phi={:.4f}: {}".format(phi_val, e), flush=True)
@@ -199,7 +201,7 @@ if __name__ == "__main__":
     print("Solving anchor: phi_lo = {:.4f}...".format(phi_grid[0]))
     lo_sol = solve_ss_equilibrium_least_squares(
         m_grid, k_grid, z_grid, Pi, _make_params(phi_grid[0], _params_dict),
-        start=np.array([1.0, 1.0, 1.0]), verbose=False,
+        start=np.array([1.0, 1.0, 1.0]), verbose=True,
     )
     print("  lo anchor: W={:.4f}  c={:.4f}  P_M={:.4f}".format(
         lo_sol["W"], lo_sol["c_agg"], lo_sol["P_M"]))

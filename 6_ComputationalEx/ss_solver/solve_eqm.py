@@ -44,6 +44,7 @@ def aggregate_vals(Dist, m_pol, k_pol, m_grid, k_grid, z_grid,
                 agg_labor += mass * (L_s_i + L_k_i + L_a_i)
                 agg_adv += mass * adv
                 agg_cust += mass * m_val
+                # agg_cust += mass*m_val**((1 + phi)/sigma) # testing Kunal's theory...
                 consumption += mass * c_val**((sigma-1)/sigma)
 
     consumption = consumption**(sigma/(sigma-1))

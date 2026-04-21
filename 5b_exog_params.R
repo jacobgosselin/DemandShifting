@@ -89,13 +89,17 @@ pct_neg_byyear <- analysis_data %>%
   summarise(pct_neg = mean(neg_ebitda, na.rm = TRUE) * 100) %>%
   rename(year = date)
 write.csv(pct_neg_byyear,
-          file.path(REPO_DIR, "6_ComputationalEx", "pct_neg_byyear.csv"),
+          file.path(REPO_DIR, "6_ComputationalEx/data", "pct_neg_byyear.csv"),
           row.names = FALSE)
 
 # Annual empirical time-series moments ----
 emp_trends <- analysis_data %>%
   group_by(date) %>%
   summarise(
+    log_qcd_earnings = log((quantile(ebitda, 0.75, na.rm = TRUE) - quantile(ebitda, 0.25, na.rm = TRUE)) /
+                     (quantile(ebitda, 0.75, na.rm = TRUE) + quantile(ebitda, 0.25, na.rm = TRUE))),
+    log_qcd_sales    = log((quantile(sale,   0.75, na.rm = TRUE) - quantile(sale,   0.25, na.rm = TRUE)) /
+                     (quantile(sale,   0.75, na.rm = TRUE) + quantile(sale,   0.25, na.rm = TRUE))),
     log_sd_earnings = log(sd(ebitda,    na.rm = TRUE)),
     log_sd_sales    = log(sd(sale,      na.rm = TRUE)),
     med_sga_sale    = median(sga_sale,  na.rm = TRUE),
@@ -107,7 +111,7 @@ emp_trends <- analysis_data %>%
   rename(year = date)
 
 write.csv(emp_trends,
-          file.path(REPO_DIR, "6_ComputationalEx", "empirical_trends_byyear.csv"),
+          file.path(REPO_DIR, "6_ComputationalEx/data", "empirical_trends_byyear.csv"),
           row.names = FALSE)
 
 cat("5b_exog_params.R complete.\n")

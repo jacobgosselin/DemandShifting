@@ -97,9 +97,13 @@ emp_trends <- analysis_data %>%
   group_by(date) %>%
   summarise(
     log_qcd_earnings = log((quantile(ebitda, 0.75, na.rm = TRUE) - quantile(ebitda, 0.25, na.rm = TRUE)) /
-                     (quantile(ebitda, 0.75, na.rm = TRUE) + quantile(ebitda, 0.25, na.rm = TRUE))),
+                     (quantile(ebitda, 0.5, na.rm = TRUE))),
     log_qcd_sales    = log((quantile(sale,   0.75, na.rm = TRUE) - quantile(sale,   0.25, na.rm = TRUE)) /
-                     (quantile(sale,   0.75, na.rm = TRUE) + quantile(sale,   0.25, na.rm = TRUE))),
+                     (quantile(sale,   0.5, na.rm = TRUE))),
+    log_iqr_earnings = log(quantile(ebitda, 0.75, na.rm = TRUE) - quantile(ebitda, 0.25, na.rm = TRUE)),
+    log_iqr_sales    = log(quantile(sale,   0.75, na.rm = TRUE) - quantile(sale,   0.25, na.rm = TRUE)),
+    log_cv_earnings     = log(sd(ebitda, na.rm = TRUE) / mean(ebitda, na.rm = TRUE)),
+    log_iqr_earnings_med = log((quantile(ebitda, 0.75, na.rm = TRUE) - quantile(ebitda, 0.25, na.rm = TRUE)) / quantile(ebitda, 0.5, na.rm = TRUE)),
     log_sd_earnings = log(sd(ebitda,    na.rm = TRUE)),
     log_sd_sales    = log(sd(sale,      na.rm = TRUE)),
     med_sga_sale    = median(sga_sale,  na.rm = TRUE),

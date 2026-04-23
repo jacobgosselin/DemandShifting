@@ -66,6 +66,22 @@ sd_ebitda_2019 <- sd(analysis_data$ebitda[analysis_data$date == 2019], na.rm = T
 sd_sales_percchange <- (sd_sales_2019 - sd_sales_1980) / abs(sd_sales_1980) * 100
 sd_ebitda_percchange <- (sd_ebitda_2019 - sd_ebitda_1980) / abs(sd_ebitda_1980) * 100
 
+# cv_sales_percchange and cv_ebitda_percchange
+cv_sales_1980 <- sd_sales_1980 / abs(mean(analysis_data$sale[analysis_data$date == 1980], na.rm = TRUE))
+cv_sales_2019 <- sd_sales_2019 / abs(mean(analysis_data$sale[analysis_data$date == 2019], na.rm = TRUE))
+cv_ebitda_1980 <- sd_ebitda_1980 / abs(mean(analysis_data$ebitda[analysis_data$date == 1980], na.rm = TRUE))
+cv_ebitda_2019 <- sd_ebitda_2019 / abs(mean(analysis_data$ebitda[analysis_data$date == 2019], na.rm = TRUE))
+cv_sales_percchange <- (cv_sales_2019 - cv_sales_1980) / abs(cv_sales_1980) * 100
+cv_ebitda_percchange <- (cv_ebitda_2019 - cv_ebitda_1980) / abs(cv_ebitda_1980) * 100
+
+# iqr_sales_percchange and iqr_ebitda_percchange
+iqr_sales_1980 <- IQR(analysis_data$sale[analysis_data$date == 1980], na.rm = TRUE)
+iqr_sales_2019 <- IQR(analysis_data$sale[analysis_data$date == 2019], na.rm = TRUE)
+iqr_ebitda_1980 <- IQR(analysis_data$ebitda[analysis_data$date == 1980], na.rm = TRUE)
+iqr_ebitda_2019 <- IQR(analysis_data$ebitda[analysis_data$date == 2019], na.rm = TRUE)
+iqr_sales_percchange <- (iqr_sales_2019 - iqr_sales_1980) / abs(iqr_sales_1980) * 100
+iqr_ebitda_percchange <- (iqr_ebitda_2019 - iqr_ebitda_1980) / abs(iqr_ebitda_1980) * 100
+
 # cogs_change_all and capex_change_all and sga_change_all (% change in medians, all firms)
 cogs_1980 <- analysis_data$cogs_sale[analysis_data$date == 1980]
 cogs_2019 <- analysis_data$cogs_sale[analysis_data$date == 2019]
@@ -108,7 +124,9 @@ stats_computed <- list(
   sga_change_neg          = sga_change_neg,
   rd_change_neg           = rd_change_neg,
   avg_earnings_factorchange = avg_earnings_factorchange,
-  med_earnings_factorchange = med_earnings_factorchange
+  med_earnings_factorchange = med_earnings_factorchange,
+  iqr_sales_percchange    = iqr_sales_percchange,
+  iqr_ebitda_percchange   = iqr_ebitda_percchange
 )
 for (key in names(stats_computed)) {
   paper_stats$value[paper_stats$key == key] <- round(stats_computed[[key]], 2)
@@ -476,11 +494,11 @@ ggsave("figures/empirical/sd_earnings_by_year.pdf", width = 8, height = 6)
 top_decile_measures <- analysis_data %>%
   group_by(date) %>%
   reframe(
-    median = median(ebitda_sale),
-    p75 = quantile(ebitda_sale, 0.75),
-    p90 = quantile(ebitda_sale, 0.90),
-    p95 = quantile(ebitda_sale, 0.95),
-    p99 = quantile(ebitda_sale, 0.99)
+    median = median(ebitda),
+    p75 = quantile(ebitda, 0.75),
+    p90 = quantile(ebitda, 0.90),
+    p95 = quantile(ebitda, 0.95),
+    p99 = quantile(ebitda, 0.99)
   ) %>%
   mutate(
     log_dist_p75 = log(abs(p75 - median)),
@@ -555,11 +573,11 @@ top_quantiles_earnings <- ggplot(top_decile_long, aes(x = date, y = log_change, 
 bottom_quantile_measures <- analysis_data %>%
   group_by(date) %>%
   reframe(
-    median = median(ebitda_sale),
-    p25 = quantile(ebitda_sale, 0.25),
-    p10 = quantile(ebitda_sale, 0.10),
-    p5 = quantile(ebitda_sale, 0.05),
-    p1 = quantile(ebitda_sale, 0.01)
+    median = median(ebitda),
+    p25 = quantile(ebitda, 0.25),
+    p10 = quantile(ebitda, 0.10),
+    p5 = quantile(ebitda, 0.05),
+    p1 = quantile(ebitda, 0.01)
   ) %>%
   mutate(
     log_dist_p25 = log(abs(median - p25)),
@@ -637,30 +655,79 @@ ggarrange(bottom_quantiles_sales, bottom_quantiles_earnings, ncol = 2, nrow = 1,
 ggsave("figures/empirical/bottom_quantiles_earnings_sales.pdf", width = 16, height = 9)
 
 # 4e: Joint plot of log sd earnings + log sd sales over time ----------------
+# add dashed lines for log iqr of earnings and sales
+iqr_sd_joint <- analysis_data %>%
+  group_by(date) %>%
+  reframe(
+    log_iqr_ebitda = log(quantile(ebitda, 0.75) - quantile(ebitda, 0.25)),
+    log_iqr_sales = log(quantile(sale, 0.75) - quantile(sale, 0.25)),
+    log_sd_ebitda = log(sd(ebitda)),
+    log_sd_sales = log(sd(sale))
+  ) %>%
+  pivot_longer(cols = c(log_iqr_ebitda, log_iqr_sales, log_sd_ebitda, log_sd_sales), names_to = "series", values_to = "value")
 
-sd_joint <- bind_rows(
-  sd_by_year       %>% mutate(series = "EBITDA"),
-  sd_sales_by_year %>% mutate(series = "Sales")
-)
+# sd_joint <- bind_rows(
+#   sd_by_year       %>% mutate(series = "EBITDA"),
+#   sd_sales_by_year %>% mutate(series = "Sales")
+# )
 
-ggplot(sd_joint, aes(x = date, y = log_sd, color = series, group = series)) +
+# ggplot(sd_joint, aes(x = date, y = log_sd, color = series, group = series)) +
+#   geom_line(linewidth = 2) +
+#   geom_point(size = 3) +
+#   scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+#   scale_color_manual(
+#     values = setNames(palette_2, c("EBITDA", "Sales")),
+#     labels = c("EBITDA" = "EBITDA", "Sales" = "Sales")
+#   ) +
+#   labs(
+#     title = "",
+#     subtitle = "",
+#     x = "Year",
+#     y = "Std. Deviation (Logged)",
+#     color = ""
+#   ) +
+#   theme_common
+
+# ggsave("figures/empirical/sd_joint_by_year.pdf", width = 8, height = 6)
+
+iqr_sd_joint %>%
+  mutate(
+    variable = ifelse(grepl("ebitda", series), "EBITDA", "Sales"),
+    measure  = ifelse(grepl("iqr",    series), "IQR",    "SD"),
+    label    = factor(paste(variable, measure),
+                      levels = c("EBITDA IQR", "EBITDA SD", "Sales IQR", "Sales SD"))
+  ) %>%
+  ggplot(aes(x = date, y = value, color = label, linetype = label, group = label)) +
   geom_line(linewidth = 2) +
   geom_point(size = 3) +
   scale_x_continuous(breaks = seq(1980, 2020, 5)) +
   scale_color_manual(
-    values = setNames(palette_2, c("EBITDA", "Sales")),
-    labels = c("EBITDA" = "EBITDA", "Sales" = "Sales")
+    name = "",
+    values = c(
+      "EBITDA IQR" = palette_2[1], "EBITDA SD" = palette_2[1],
+      "Sales IQR"  = palette_2[2], "Sales SD"  = palette_2[2]
+    )
+  ) +
+  scale_linetype_manual(
+    name = "",
+    values = c(
+      "EBITDA IQR" = "dashed", "EBITDA SD" = "solid",
+      "Sales IQR"  = "dashed", "Sales SD"  = "solid"
+    )
+  ) +
+  guides(
+    color    = guide_legend(keywidth = unit(1.75, "cm")),
+    linetype = guide_legend(keywidth = unit(1.75, "cm"))
   ) +
   labs(
     title = "",
     subtitle = "",
     x = "Year",
-    y = "Std. Deviation (Logged)",
-    color = ""
+    y = "Dispersion (Logged)"
   ) +
   theme_common
 
-ggsave("figures/empirical/sd_joint_by_year.pdf", width = 8, height = 6)
+ggsave("figures/empirical/iqr_joint_by_year.pdf", width = 8, height = 6)
 
 
 # 5: Bar plot of negative earnings by 2-digit NAICS sector ----------------------
@@ -836,3 +903,61 @@ ggplot(markup_by_year, aes(x = date, y = median_mu)) +
   theme_common
 
 ggsave("figures/empirical/markup_by_year.pdf", width = 8, height = 6)
+
+# APPENDIX: Scale invariant measure of distribution spread for earnings
+
+# Sector-normalized IQR: divide each firm by its sector-year median, then take IQR across all firms
+sector_norm_spread <- analysis_data %>%
+  group_by(date) %>%
+  reframe(
+    iqr_norm_sale = (quantile(sale, 0.75) - quantile(sale, 0.25)) / median(sale),
+    iqr_norm_ebitda = (quantile(ebitda, 0.75) - quantile(ebitda, 0.25)) / median(ebitda),
+    # check movements on both sides
+    p50_p25_norm_ebitda = (quantile(ebitda, 0.50) - quantile(ebitda, 0.25)) / median(ebitda),
+    p75_p50_norm_ebitda = (quantile(ebitda, 0.75) - quantile(ebitda, 0.50)) / median(ebitda),
+    p50_p25_norm_sale = (quantile(sale, 0.50) - quantile(sale, 0.25)) / median(sale),
+    p75_p50_norm_sale = (quantile(sale, 0.75) - quantile(sale, 0.50)) / median(sale)
+  ) %>%
+  mutate(
+    log_iqr_norm_sales = log(iqr_norm_sale),
+    log_iqr_norm_ebitda = log(iqr_norm_ebitda),
+    log_p50_p25_norm_ebitda = log(p50_p25_norm_ebitda),
+    log_p75_p50_norm_ebitda = log(p75_p50_norm_ebitda),
+    log_p50_p25_norm_sale = log(p50_p25_norm_sale),
+    log_p75_p50_norm_sale = log(p75_p50_norm_sale)
+  )
+
+base_1980_spread <- sector_norm_spread %>% filter(date == 1980)
+
+scale_inv_iqr <- sector_norm_spread %>%
+  mutate(
+    log_change_iqr_norm_sales = log_iqr_norm_sales - base_1980_spread$log_iqr_norm_sales,
+    log_change_iqr_norm_ebitda = log_iqr_norm_ebitda - base_1980_spread$log_iqr_norm_ebitda, 
+    log_change_p50_p25_norm_ebitda = log_p50_p25_norm_ebitda - base_1980_spread$log_p50_p25_norm_ebitda,
+    log_change_p75_p50_norm_ebitda = log_p75_p50_norm_ebitda - base_1980_spread$log_p75_p50_norm_ebitda,
+    log_change_p50_p25_norm_sale = log_p50_p25_norm_sale - base_1980_spread$log_p50_p25_norm_sale,
+    log_change_p75_p50_norm_sale = log_p75_p50_norm_sale - base_1980_spread$log_p75_p50_norm_sale
+  ) %>%
+  select(date, log_change_iqr_norm_sales, log_change_iqr_norm_ebitda, log_change_p50_p25_norm_ebitda, log_change_p75_p50_norm_ebitda, log_change_p50_p25_norm_sale, log_change_p75_p50_norm_sale) %>%
+  pivot_longer(cols = starts_with("log_change"),
+               names_to = "variable",
+               values_to = "log_change")
+
+plot_main_measures <- ggplot(scale_inv_iqr %>% filter(variable == "log_change_iqr_norm_ebitda" | variable == "log_change_iqr_norm_sales"), aes(x = date, y = log_change, color = variable, group = variable)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+  scale_color_manual(
+    values = setNames(palette_2, c( "log_change_iqr_norm_ebitda", "log_change_iqr_norm_sales")),
+    labels = c("log_change_iqr_norm_ebitda" = "EBITDA", "log_change_iqr_norm_sales" = "Sales")
+  ) +
+  labs(
+    x = "Year",
+    y = "IQR/Med. (Log Change from 1980)",
+    color = "",
+    title = ""
+  ) +
+  theme_common
+
+ggsave("figures/empirical/scale_inv_main_measures.pdf", width = 8, height = 6)

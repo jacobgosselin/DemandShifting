@@ -63,14 +63,20 @@ print(f"Loaded {len(eqms)} equilibria for years {years[0]}–{years[-1]}.\n")
 # Load empirical time-series moments (produced by 5b_exog_params.R)
 _emp_csv = os.path.join(_DIR, "data", "empirical_trends_byyear.csv")
 emp_df = pd.read_csv(_emp_csv).set_index("year")
+
+# Normalize log sd/iqr for sales and earnings, and cv and iqr/median for earnings
 _base_log_sd_earn = emp_df.loc[years[0], "log_sd_earnings"]
 _base_log_sd_sale = emp_df.loc[years[0], "log_sd_sales"]
 emp_df["log_sd_earnings_norm"] = emp_df["log_sd_earnings"] - _base_log_sd_earn
 emp_df["log_sd_sales_norm"]    = emp_df["log_sd_sales"]    - _base_log_sd_sale
-_base_log_qcd_earn = emp_df.loc[years[0], "log_qcd_earnings"]
-_base_log_qcd_sale = emp_df.loc[years[0], "log_qcd_sales"]
-emp_df["log_qcd_earnings_norm"] = emp_df["log_qcd_earnings"] - _base_log_qcd_earn
-emp_df["log_qcd_sales_norm"]    = emp_df["log_qcd_sales"]    - _base_log_qcd_sale
+_base_log_iqr_earn = emp_df.loc[years[0], "log_iqr_earnings"]
+_base_log_iqr_sale = emp_df.loc[years[0], "log_iqr_sales"]
+emp_df["log_iqr_earnings_norm"] = emp_df["log_iqr_earnings"] - _base_log_iqr_earn
+emp_df["log_iqr_sales_norm"]    = emp_df["log_iqr_sales"]    - _base_log_iqr_sale
+_base_log_iqr_earn_med = emp_df.loc[years[0], "log_iqr_earnings_med"]
+emp_df["log_iqr_earnings_med"] = emp_df["log_iqr_earnings_med"] - _base_log_iqr_earn_med
+_base_log_cv = emp_df.loc[years[0], "log_cv_earnings"]
+emp_df["log_cv_earnings_norm"] = emp_df["log_cv_earnings"] - _base_log_cv
 
 # phi by year (from solved equilibrium params)
 phi_vals = [eqms[yr]["params"]["phi"] for yr in years]
@@ -82,7 +88,8 @@ phi_vals = [eqms[yr]["params"]["phi"] for yr in years]
 pct_neg_vals  = []
 pct_neg_income_vals = []
 sd_earnings_raw, sd_sales_raw = [], []
-qcd_earnings_vals, qcd_sales_vals = [], []
+iqr_earnings_raw, iqr_sales_raw = [], []
+iqr_earnings_med_raw, cv_earnings = [], []
 med_adv_all, med_inv_all, med_cogs_all = [], [], []
 med_adv_neg, med_inv_neg, med_cogs_neg = [], [], []
 med_earn_vals, mean_earn_vals = [], []
@@ -112,14 +119,26 @@ for yr in years:
     _, earnings_cdf = est_dist(m_grid, k_grid, z_grid, eqm, "earnings")
     _, sales_cdf    = est_dist(m_grid, k_grid, z_grid, eqm, "revenue")
 
+    # use wage as numeraire, so multiply earnings_cdf[1] by wage to get earnings in dollars, and similarly for sales
+    earnings_cdf[1] /= eqm['W']
+    sales_cdf[1]    /= eqm['W']
+
     # find p75 and p25 of earnings and sales, compute QCD, and log-normalize by base year
-    # earnings_cdf = [val, cdf]
     earnings_p75 = percentile_from_cdf(earnings_cdf, .75)
     earnings_p25 = percentile_from_cdf(earnings_cdf, .25)
     sales_p25 = percentile_from_cdf(sales_cdf, .25)
     sales_p75 = percentile_from_cdf(sales_cdf, .75)
-    qcd_earnings_vals.append((earnings_p75 - earnings_p25) / (earnings_p75 + earnings_p25))
-    qcd_sales_vals.append((sales_p75 - sales_p25) / (sales_p75 + sales_p25))
+    iqr_earnings_raw.append(earnings_p75 - earnings_p25)
+    iqr_sales_raw.append(sales_p75 - sales_p25)
+
+    # Compute normalized iqr for earnings and sales, 
+    iqr_earnings_med = (earnings_p75 - earnings_p25) / percentile_from_cdf(earnings_cdf, .5)
+    iqr_earnings_med_raw.append(iqr_earnings_med)
+    cv_earnings_val = est_sd(earnings_cdf) / np.sum(earnings_cdf[1] * earnings_cdf[0])  # sd / mean
+    cv_earnings.append(cv_earnings_val)
+
+    # iqr_sales_norm    = (sales_p75 - sales_p25) / percentile_from_cdf(sales_cdf, .5)
+    # print(f"  {yr}: QCD Earnings={qcd_earnings_vals[-1]:.4f}  QCD Sales={qcd_sales_vals[-1]:.4f}  IQR Norm Earnings={iqr_earnings_norm:.4f}  IQR Norm Sales={iqr_sales_norm:.4f}")
 
     sd_earnings_raw.append(est_sd(earnings_cdf))
     sd_sales_raw.append(est_sd(sales_cdf))
@@ -145,11 +164,19 @@ sd_sales_arr    = np.array(sd_sales_raw)
 sd_earnings_vals = np.log(sd_earnings_arr / sd_earnings_arr[0])
 sd_sales_vals    = np.log(sd_sales_arr    / sd_sales_arr[0])
 
-# Log-normalize qcd (log change from base year)
-qcd_earnings_arr = np.array(qcd_earnings_vals)
-qcd_sales_arr    = np.array(qcd_sales_vals)
-qcd_earnings_vals = np.log(qcd_earnings_arr / qcd_earnings_arr[0])
-qcd_sales_vals    = np.log(qcd_sales_arr    / qcd_sales_arr[0])
+# Log-normalize iqr (log change from base year)
+iqr_earnings_arr = np.array(iqr_earnings_raw)
+iqr_sales_arr    = np.array(iqr_sales_raw)
+iqr_earnings_norm_arr = np.array(iqr_earnings_med_raw)
+iqr_earnings_vals = np.log(iqr_earnings_arr / iqr_earnings_arr[0])
+iqr_sales_vals    = np.log(iqr_sales_arr    / iqr_sales_arr[0])
+iqr_earnings_norm_vals = np.log(iqr_earnings_norm_arr / iqr_earnings_norm_arr[0])
+
+# Log normalize iqr_med and cv for earnings
+iqr_earnings_med_arr = np.array(iqr_earnings_med_raw)
+iqr_earnings_med_vals = np.log(iqr_earnings_med_arr / iqr_earnings_med_arr[0])
+cv_earnings_arr = np.array(cv_earnings)
+cv_earnings_vals = np.log(cv_earnings_arr / cv_earnings_arr[0])
 
 # Average age of negative-earning firms in the stationary distribution
 print("\nComputing avg age of neg-earning firms by year (slow) ...")
@@ -261,71 +288,21 @@ fig.tight_layout(rect=[0, 0.06, 1, 1])
 fig.legend(handles_c, labels_c, fontsize=14, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0))
 # _save("cost_ratios_data_vs_model.pdf", fig, close=True)
 
-# Figure D: Two-panel — empirical vs model log qcd earnings
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 9))
-ax1.plot(years, emp_df["log_sd_earnings_norm"], "o-", linewidth=3, markersize=10, color="black")
-ax1.set_xlabel("Year")
-ax1.set_ylabel("")
-ax1.set_title("Std. Deviation Earnings (Data, Log Change from 1980)")
-ax1.grid(True, alpha=0.3)
-ax2.plot(years, sd_earnings_vals, "o-", linewidth=3, markersize=10, color="black")
-ax2.set_xlabel("Year")
-ax2.set_ylabel("")
-ax2.set_title("Std. Deviation Earnings (Model, Log Change from 1980)")
-ax2.grid(True, alpha=0.3)
-gs = fig.add_gridspec(2, 1)
-ax1.set_subplotspec(gs[0])
-ax2.set_subplotspec(gs[1])
-fig.set_size_inches(8, 12)
-fig.tight_layout()
-_save("sd_earnings_data_vs_model_slide.pdf", fig, close=False)
-gs = fig.add_gridspec(1, 2)
-ax1.set_subplotspec(gs[0])
-ax2.set_subplotspec(gs[1])
-fig.set_size_inches(16, 9)
-fig.tight_layout()
-# _save("sd_earnings_data_vs_model.pdf", fig, close=True)
-
-# Figure E: Two-panel — empirical vs model log SD sales
+# Figure D: Two-panel overlay — Log QCD Sales + Log QCD Earnings (Change from 1980)
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-ax1.plot(years, emp_df["log_sd_sales_norm"], "o-", linewidth=3, markersize=10, color="black")
-ax1.set_xlabel("Year")
-ax1.set_ylabel("")
-ax1.set_title("Std. Deviation Sales (Data, Log Change from 1980)")
-ax1.grid(True, alpha=0.3)
-ax2.plot(years, sd_sales_vals, "o-", linewidth=3, markersize=10, color="black")
-ax2.set_xlabel("Year")
-ax2.set_ylabel("")
-ax2.set_title("Std. Deviation Sales (Model, Log Change from 1980)")
-ax2.grid(True, alpha=0.3)
-gs = fig.add_gridspec(2, 1)
-ax1.set_subplotspec(gs[0])
-ax2.set_subplotspec(gs[1])
-fig.set_size_inches(8, 12)
-fig.tight_layout()
-_save("sd_sales_data_vs_model_slide.pdf", fig, close=False)
-gs = fig.add_gridspec(1, 2)
-ax1.set_subplotspec(gs[0])
-ax2.set_subplotspec(gs[1])
-fig.set_size_inches(16, 8)
-fig.tight_layout()
-# _save("sd_sales_data_vs_model.pdf", fig, close=True)
-
-# Figure E1: Two-panel overlay — Log QCD Sales + Log QCD Earnings (Change from 1980)
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-ax1.plot(years, emp_df["log_qcd_sales_norm"],    "o-", linewidth=3, markersize=10, label="Log QCD Sales",    color=palette_2[0])
-ax1.plot(years, emp_df["log_qcd_earnings_norm"], "s-", linewidth=3, markersize=10, label="Log QCD Earnings", color=palette_2[1])
+ax1.plot(years, emp_df["log_sd_sales_norm"],    "o-", linewidth=3, markersize=10, label="Sales",    color=palette_2[0])
+ax1.plot(years, emp_df["log_sd_earnings_norm"], "s-", linewidth=3, markersize=10, label="Earnings", color=palette_2[1])
 ax1.set_ylim(-0.4, 1.2)
 ax1.set_xlabel("Year")
 ax1.set_ylabel("")
-ax1.set_title("QCD (Data, Log Change)")
+ax1.set_title("Std. Dev. (Data, Log Change)")
 ax1.grid(True, alpha=0.3)
-ax2.plot(years, qcd_sales_vals,    "o-", linewidth=3, markersize=10, label="Log QCD Sales",    color=palette_2[0])
-ax2.plot(years, qcd_earnings_vals, "s-", linewidth=3, markersize=10, label="Log QCD Earnings", color=palette_2[1])
+ax2.plot(years, sd_sales_vals,    "o-", linewidth=3, markersize=10, label="Sales",    color=palette_2[0])
+ax2.plot(years, sd_earnings_vals, "s-", linewidth=3, markersize=10, label="Earnings", color=palette_2[1])
 ax2.set_ylim(-0.4, 1.2)
 ax2.set_xlabel("Year")
 ax2.set_ylabel("")
-ax2.set_title("QCD (Model, Log Change)")
+ax2.set_title("Std. Dev. (Model, Log Change)")
 ax2.grid(True, alpha=0.3)
 handles_e1, labels_e1 = ax1.get_legend_handles_labels()
 gs = fig.add_gridspec(2, 1)
@@ -370,22 +347,44 @@ axes[0, 1].set_ylabel("")
 axes[0, 1].set_title("Avg. Neg. Spell Length (Model)")
 axes[0, 1].set_ylim(0, 5)
 axes[0, 1].grid(True, alpha=0.3)
-axes[1, 0].plot(years, emp_df["log_qcd_sales_norm"],    "o-", linewidth=3, markersize=10, label="Log QCD Sales",    color=palette_2[0])
-axes[1, 0].plot(years, emp_df["log_qcd_earnings_norm"], "s-", linewidth=3, markersize=10, label="Log QCD Earnings", color=palette_2[1])
-axes[1, 0].set_ylim(0, 0.75)
+
+# Plot un-normalized IQR for Sales and Earnings
+axes[1, 0].plot(years, emp_df["log_sd_sales_norm"],    "o-", linewidth=3, markersize=10, label="Sales",    color=palette_2[0])
+axes[1, 0].plot(years, emp_df["log_sd_earnings_norm"], "s-", linewidth=3, markersize=10, label="Earnings", color=palette_2[1])
+axes[1, 0].set_ylim(-0.4, 1.2)
 axes[1, 0].set_xlabel("Year")
 axes[1, 0].set_ylabel("")
-axes[1, 0].set_title("QCD (Data, Log Change)")
+axes[1, 0].set_title("Std. Dev. (Data, Log Change)")
 axes[1, 0].grid(True, alpha=0.3)
 axes[1, 0].legend(fontsize=16)
-axes[1, 1].plot(years, qcd_sales_vals,    "o-", linewidth=3, markersize=10, label="Log QCD Sales",    color=palette_2[0])
-axes[1, 1].plot(years, qcd_earnings_vals, "s-", linewidth=3, markersize=10, label="Log QCD Earnings", color=palette_2[1])
-axes[1, 1].set_ylim(0, 0.75)
+axes[1, 1].plot(years, sd_sales_vals,    "o-", linewidth=3, markersize=10, label="Sales",    color=palette_2[0])
+axes[1, 1].plot(years, sd_earnings_vals, "s-", linewidth=3, markersize=10, label="Earnings", color=palette_2[1])
+axes[1, 1].set_ylim(-0.4, 1.2)
 axes[1, 1].set_xlabel("Year")
 axes[1, 1].set_ylabel("")
-axes[1, 1].set_title("QCD (Model, Log Change)")
+axes[1, 1].set_title("Std. Dev. (Model, Log Change)")
 axes[1, 1].grid(True, alpha=0.3)
 axes[1, 1].legend(fontsize=16)
+
+# Plot CV and IQR/Median for earnings
+# axes[1, 0].plot(years, emp_df["log_iqr_earnings_med_norm"], "o-", linewidth=3, markersize=10, label="IQR/Median (Data)", color=palette_2[1])
+# axes[1, 0].plot(years, emp_df["log_cv_earnings_norm"],    "s-", linewidth=3, markersize=10, label="CV (Data)",        color=palette_2[0])
+# axes[1, 0].set_ylim(-0.1, 0.5)
+# axes[1, 0].set_xlabel("Year")
+# axes[1, 0].set_ylabel("")
+# axes[1, 0].set_title("Earnings Dispersion (Data, Log Change)")
+# axes[1, 0].grid(True, alpha=0.3)
+# axes[1, 0].legend(fontsize=16)
+# axes[1, 1].plot(years, iqr_earnings_med_vals, "o-", linewidth=3, markersize=10, label="IQR/Median (Model)", color=palette_2[1])
+# axes[1, 1].plot(years, cv_earnings_vals,    "s-", linewidth=3, markersize=10, label="CV (Model)",        color=palette_2[0])
+# axes[1, 1].set_ylim(-0.1, 0.5)
+# axes[1, 1].set_xlabel("Year")
+# axes[1, 1].set_ylabel("")
+# axes[1, 1].set_title("Earnings Dispersion (Model, Log Change)")
+# axes[1, 1].grid(True, alpha=0.3)
+# axes[1, 1].legend(fontsize=16)
+
+
 axes[2, 0].plot(years, emp_df["med_sga_sale"],  "o-", linewidth=3, markersize=8, label="SG&A/Rev",  color=palette_3[0])
 axes[2, 0].plot(years, emp_df["med_cogs_sale"], "s-", linewidth=3, markersize=8, label="COGS/Rev",  color=palette_3[1])
 axes[2, 0].plot(years, emp_df["med_capx_sale"], "^-", linewidth=3, markersize=8, label="CapEx/Rev", color=palette_3[2])

@@ -119,10 +119,6 @@ for yr in years:
     _, earnings_cdf = est_dist(m_grid, k_grid, z_grid, eqm, "earnings")
     _, sales_cdf    = est_dist(m_grid, k_grid, z_grid, eqm, "revenue")
 
-    # use wage as numeraire, so multiply earnings_cdf[1] by wage to get earnings in dollars, and similarly for sales
-    earnings_cdf[1] /= eqm['W']
-    sales_cdf[1]    /= eqm['W']
-
     # find p75 and p25 of earnings and sales, compute QCD, and log-normalize by base year
     earnings_p75 = percentile_from_cdf(earnings_cdf, .75)
     earnings_p25 = percentile_from_cdf(earnings_cdf, .25)
@@ -137,12 +133,11 @@ for yr in years:
     cv_earnings_val = est_sd(earnings_cdf) / np.sum(earnings_cdf[1] * earnings_cdf[0])  # sd / mean
     cv_earnings.append(cv_earnings_val)
 
-    # iqr_sales_norm    = (sales_p75 - sales_p25) / percentile_from_cdf(sales_cdf, .5)
-    # print(f"  {yr}: QCD Earnings={qcd_earnings_vals[-1]:.4f}  QCD Sales={qcd_sales_vals[-1]:.4f}  IQR Norm Earnings={iqr_earnings_norm:.4f}  IQR Norm Sales={iqr_sales_norm:.4f}")
-
+    # append std. dev. of earnings and sales to raw lists (to be log-normalized later)
     sd_earnings_raw.append(est_sd(earnings_cdf))
     sd_sales_raw.append(est_sd(sales_cdf))
 
+    # append median cost ratios for all firms and for negative-earning firms
     med_adv_all.append(median_adv_ratio(m_grid, k_grid, z_grid, eqm, negative_earnings_only=False))
     med_inv_all.append(median_inv_ratio(m_grid, k_grid, z_grid, eqm, negative_earnings_only=False))
     med_cogs_all.append(median_cogs_ratio(m_grid, k_grid, z_grid, eqm, negative_earnings_only=False))
@@ -150,6 +145,7 @@ for yr in years:
     med_inv_neg.append(median_inv_ratio(m_grid, k_grid, z_grid, eqm, negative_earnings_only=True))
     med_cogs_neg.append(median_cogs_ratio(m_grid, k_grid, z_grid, eqm, negative_earnings_only=True))
 
+    # append mean and median earnings
     med_earn_vals.append(median_earnings(m_grid, k_grid, z_grid, eqm))
     mean_earn_vals.append(mean_earnings(m_grid, k_grid, z_grid, eqm))
 

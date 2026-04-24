@@ -23,15 +23,11 @@ from ss_solver.integrate_dist import agg_consumption
 
 palette_2 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 2)]
 palette_3 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 3)]
+palette_4 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 4)]
 palette_5 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 5)]
 
 from ss_solver.integrate_dist import (
-    pct_negative, pct_negative_income, est_dist, est_sd,
-    median_adv_ratio, median_inv_ratio, median_cogs_ratio,
-    median_earnings, mean_earnings,
     agg_capital_stock, sales_wtd_productivity, agg_labor_shares,
-    avg_firm_earnings_path, cohort_neg_path,
-    avg_neg_spell_cohort,
 )
 from ss_solver.prod_fncts import *
 
@@ -164,24 +160,36 @@ plt.rcParams.update({
 # Figure 1a: GDP proxy (C + I + A)
 gdp = np.array(c_vals) + np.array(i_vals) + np.array(a_vals)
 plt.figure(figsize=(10, 10))
-plt.plot(years, gdp/gdp[0] - 1, "o-", linewidth=3, markersize=10, color="black")
+plt.plot(years, (gdp/gdp[0] - 1)*100, "o-", linewidth=3, markersize=10, color="black")
 plt.xlabel("Year", fontsize=18)
-plt.ylabel("GDP Proxy (C + I + A)", fontsize=18)
+plt.ylabel("% Change From 1980", fontsize=18)
 plt.tick_params(axis="both", which="major", labelsize=16)
 plt.grid(True, alpha=0.3)
 _save("gdp_proxy_vs_phi.pdf")
 
-# Figure 1b: C vs. I vs. A
-plt.figure(figsize=(10, 10))
-plt.plot(years, c_vals/c_vals[0] - 1, "o-", linewidth=3, markersize=10, label=r"C", color=palette_3[0])
-plt.plot(years, i_vals/i_vals[0] - 1, "s-", linewidth=3, markersize=10, label=r"I", color=palette_3[1])
-plt.plot(years, a_vals/a_vals[0] - 1, "^-", linewidth=3, markersize=10, label=r"A", color=palette_3[2])
-plt.xlabel("Year", fontsize=18)
-plt.ylabel("", fontsize=18)
-plt.tick_params(axis="both", which="major", labelsize=16)
-plt.grid(True, alpha=0.3)
-plt.legend(fontsize=16)
-_save("C_I_A_vs_phi.pdf")
+# Figure 1b: GDP vs. C vs. I vs. A
+# 2-Panel Version: 1-panel is Level Change, 2-panel is % Change from 1980 (base year)
+fig, axs = plt.subplots(1, 2, figsize=(16, 9))
+axs[0].plot(years, gdp, "o-", linewidth=3, markersize=10, label="GDP", color=palette_4[0])
+axs[0].plot(years, c_vals, "o-", linewidth=3, markersize=10, label="C", color=palette_4[1])
+axs[0].plot(years, a_vals, "^-", linewidth=3, markersize=10, label="A", color=palette_4[2])
+axs[0].plot(years, i_vals, "s-", linewidth=3, markersize=10, label="I", color=palette_4[3])
+axs[0].set_xlabel("Year", fontsize=18)
+axs[0].set_title("GDP Components (Level Change)", fontsize=18)
+axs[0].legend(fontsize=16)
+axs[0].tick_params(axis="both", which="major", labelsize=16)
+axs[0].grid(True, alpha=0.3)
+axs[1].plot(years, (gdp/gdp[0] - 1)*100, "o-", linewidth=3, markersize=10, label="GDP", color=palette_4[0])
+axs[1].plot(years, (c_vals/c_vals[0] - 1)*100, "o-", linewidth=3, markersize=10, label="C", color=palette_4[1])
+axs[1].plot(years, (a_vals/a_vals[0] - 1)*100, "^-", linewidth=3, markersize=10, label="A", color=palette_4[2])
+axs[1].plot(years, (i_vals/i_vals[0] - 1)*100, "s-", linewidth=3, markersize=10, label="I", color=palette_4[3])
+axs[1].set_xlabel("Year", fontsize=18)
+axs[1].set_title("GDP Components (% Change From 1980)", fontsize=18)
+axs[1].legend(fontsize=16)
+axs[1].tick_params(axis="both", which="major", labelsize=16)
+axs[1].grid(True, alpha=0.3)
+_save("GDP_C_I_A_vs_phi.pdf", fig=fig)
+
 
 # Figure 1c: Recover TFP
 cost_shares_k = np.array(vk_vals) / np.array(c_vals)
@@ -216,18 +224,18 @@ _save("agg_capital_stock_vs_phi.pdf")
 
 # Figure 3: Sales-weighted productivity
 plt.figure(figsize=(10, 10))
-plt.plot(years, sales_wtd_z_vals, "o-", linewidth=3, markersize=10, color="black")
+plt.plot(years, (sales_wtd_z_vals/sales_wtd_z_vals[0] - 1)*100, "o-", linewidth=3, markersize=10, color="black")
 plt.xlabel("Year", fontsize=18)
-plt.ylabel("Sales-Weighted Productivity", fontsize=18)
+plt.ylabel("% Change From 1980", fontsize=18)
 plt.tick_params(axis="both", which="major", labelsize=16)
 plt.grid(True, alpha=0.3)
 _save("sales_wtd_productivity_vs_phi.pdf")
 
 # Figure 4: Aggregate labor allocations
 plt.figure(figsize=(10, 10))
-plt.plot(years, La_vals, "o-", linewidth=3, markersize=10, label=r"$L_a$ (advertising)", color=palette_3[0])
-plt.plot(years, Lk_vals, "s-", linewidth=3, markersize=10, label=r"$L_k$ (capital inv.)", color=palette_3[1])
-plt.plot(years, Ls_vals, "^-", linewidth=3, markersize=10, label=r"$L_s$ (goods prod.)", color=palette_3[2])
+plt.plot(years, La_vals, "o-", linewidth=3, markersize=10, label=r"$L_a$ (adv.)", color=palette_3[0])
+plt.plot(years, Lk_vals, "s-", linewidth=3, markersize=10, label=r"$L_k$ (capital)", color=palette_3[1])
+plt.plot(years, Ls_vals, "^-", linewidth=3, markersize=10, label=r"$L_s$ (goods)", color=palette_3[2])
 plt.xlabel("Year", fontsize=18)
 plt.ylabel("Aggregate Labor Allocation", fontsize=18)
 plt.legend(fontsize=16)
@@ -239,14 +247,57 @@ print("\nAggregate labor allocations by year:")
 for yr, La, Lk, Ls in zip(years, La_vals, Lk_vals, Ls_vals):
     print(f"  {yr}: La={La:.4f}, Lk={Lk:.4f}, Ls={Ls:.4f}")
 
+# Figure 4a: Two Panel: Aggregate labor allocations and sales weighted productivity
+fig, axs = plt.subplots(1, 2, figsize=(16, 9))
+axs[0].plot(years, Ls_vals, "^-", linewidth=3, markersize=10, label=r"$L$", color=palette_3[0])
+axs[0].plot(years, La_vals, "o-", linewidth=3, markersize=10, label=r"$L_a$", color=palette_3[1])
+axs[0].plot(years, Lk_vals, "s-", linewidth=3, markersize=10, label=r"$L_k$", color=palette_3[2])
+axs[0].set_xlabel("Year", fontsize=18)
+axs[0].set_title("Labor Allocation", fontsize=18)
+axs[0].legend(fontsize=16)
+axs[0].tick_params(axis="both", which="major", labelsize=16)
+axs[0].grid(True, alpha=0.3)
+axs[1].plot(years, (sales_wtd_z_vals/sales_wtd_z_vals[0] - 1)*100, "o-", linewidth=3, markersize=10, color="black")
+axs[1].set_xlabel("Year", fontsize=18)
+axs[1].set_title("Sales-Weighted Productivity (% Change From 1980 )", fontsize=18)
+axs[1].tick_params(axis="both", which="major", labelsize=16)
+axs[1].grid(True, alpha=0.3)
+_save("agg_labor_shares_and_productivity_vs_phi.pdf", fig=fig)
+
 # Figure 5: Different C aggregates (fixed)
-plt.figure(figsize=(10, 10))
-plt.plot(years, c_vals/c_vals[0] - 1, "o-", linewidth=3, markersize=10, label=r"Overall", color=palette_3[0])
-plt.plot(years, c_only_phi/c_vals[0] - 1, "s-", linewidth=3, markersize=10, label=r"Changing $\phi$, fixing dist.", color=palette_3[1])
-plt.plot(years, c_phi_fixed/c_vals[0] - 1, "^-", linewidth=3, markersize=10, label=r"Fixing $\phi$, changing dist.", color=palette_3[2])
+plt.figure(figsize=(8, 6))
+plt.plot(years, (c_vals/c_vals[0] - 1)*100, "o-", linewidth=3, markersize=10, label=r"C (Overall)", color=palette_3[0])
+plt.plot(years, (c_only_phi/c_vals[0] - 1)*100, "s-", linewidth=3, markersize=10, label=r"C (Fixed Choices)", color=palette_3[1])
+plt.plot(years, (c_phi_fixed/c_vals[0] - 1)*100, "^-", linewidth=3, markersize=10, label=r"C (Fixed $\phi$)", color=palette_3[2])
 plt.xlabel("Year", fontsize=18)
-plt.ylabel("Aggregate Consumption", fontsize=18)
+plt.ylabel("% Change From 1980", fontsize=18)
 plt.legend(fontsize=16)
 plt.tick_params(axis="both", which="major", labelsize=16)
 plt.grid(True, alpha=0.3)
 _save("C_aggregates_vs_phi.pdf")
+
+# Paper stats
+PAPER_STATS_PATH = os.path.join(MAIN_DIR, "paper", "paper_stats.csv")
+paper_stats = pd.read_csv(PAPER_STATS_PATH)
+
+stats_model = {
+    "gdp_pct_change": (gdp[-1]/gdp[0] - 1)*100,
+    "c_pct_change": (c_vals[-1]/c_vals[0] - 1)*100,
+    "i_pct_change": (i_vals[-1]/i_vals[0] - 1)*100,
+    "a_pct_change": (a_vals[-1]/a_vals[0] - 1)*100,
+}
+
+for key, val in stats_model.items():
+    # find the row in paper_stats with the given key and update its value to val
+    # add if not already present
+    # round to 2 decimal places
+    val = round(val, 1)
+    if key not in paper_stats["key"].values:
+        paper_stats = paper_stats._append({"key": key, "value": val}, ignore_index=True)
+    else:
+
+        paper_stats.loc[paper_stats["key"] == key, "value"] = val
+
+
+paper_stats.to_csv(PAPER_STATS_PATH, index=False)
+print(f"\nPaper stats written to {PAPER_STATS_PATH}")

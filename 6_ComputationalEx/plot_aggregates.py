@@ -85,6 +85,7 @@ k_bnd_vals    = []
 agg_k_vals    = []
 sales_wtd_z_vals = []
 La_vals, Lk_vals, Ls_vals = [], [], []
+Vm_list = []
 
 eqm_0  = eqms[years[0]]
 dist_0 = eqm_0["Dist"]
@@ -102,9 +103,11 @@ for yr in years:
     m_grid = eqm["m_grid"]
     k_grid = eqm["k_grid"]
     z_grid = eqm["z_grid"]
+    pol = eqm["policies"]
 
     m_bnd_vals.append(np.sum(dist[-10:, :, :]) / np.sum(dist))
     k_bnd_vals.append(np.sum(dist[:, -10:, :]) / np.sum(dist))
+    Vm_list.append(pol["Vm"])
 
     # compute different c aggregates
     c_main = eqm["c_agg"]
@@ -276,6 +279,27 @@ plt.tick_params(axis="both", which="major", labelsize=16)
 plt.grid(True, alpha=0.3)
 _save("C_aggregates_vs_phi.pdf")
 
+# Figure 6: 2-panel, Vm for 0 K, lines for 5 evenly-spaced m values
+# 1980 in panel 1, 2019 in panel 2
+fig, axs = plt.subplots(1, 2, figsize=(16, 9))
+m_indices = np.linspace(0, len(m_grid) - 1, 5, dtype=int)
+for im in m_indices:
+    axs[0].plot(z_grid, Vm_list[0][im, 0, :], label=f"m={m_grid[im]:.3f}")
+    axs[1].plot(z_grid, Vm_list[-1][im, 0, :], label=f"m={m_grid[im]:.3f}")
+axs[0].set_xlabel("z", fontsize=18)
+axs[0].set_title("Vm (K=0)", fontsize=18)
+axs[0].legend(fontsize=16)
+axs[0].tick_params(axis="both", which="major", labelsize=16)
+axs[0].grid(True, alpha=0.3)
+axs[1].set_xlabel("z", fontsize=18)
+axs[1].set_title("Vm (K=0)", fontsize=18)
+axs[1].legend(fontsize=16)
+axs[1].tick_params(axis="both", which="major", labelsize=16)
+axs[1].grid(True, alpha=0.3)
+_save("Vm_z_by_m.pdf", fig=fig)
+
+
+
 # Paper stats
 PAPER_STATS_PATH = os.path.join(MAIN_DIR, "paper", "paper_stats.csv")
 paper_stats = pd.read_csv(PAPER_STATS_PATH)
@@ -285,6 +309,7 @@ stats_model = {
     "c_pct_change": (c_vals[-1]/c_vals[0] - 1)*100,
     "i_pct_change": (i_vals[-1]/i_vals[0] - 1)*100,
     "a_pct_change": (a_vals[-1]/a_vals[0] - 1)*100,
+    "sales_wtd_z_pct_change": (sales_wtd_z_vals[-1]/sales_wtd_z_vals[0] - 1)*100,
 }
 
 for key, val in stats_model.items():

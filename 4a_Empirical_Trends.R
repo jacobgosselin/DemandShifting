@@ -55,7 +55,7 @@ avg_earnings_factorchange <- mean(ebitda_2019, na.rm = TRUE) / mean(ebitda_1980,
 med_earnings_factorchange <- median(ebitda_2019, na.rm = TRUE) / median(ebitda_1980, na.rm = TRUE)
 
 # num_obs_analysisdata and num_firms_analysisdata
-num_obs_analysisdata <- nrow(analysis_data)
+num_obs_analysisdata <- nrow(analysis_data) 
 num_firms_analysisdata <- n_distinct(analysis_data$gvkey)
 
 # sd_sales_percchange and sd_ebitda_percchange
@@ -129,7 +129,12 @@ stats_computed <- list(
   iqr_ebitda_percchange   = iqr_ebitda_percchange
 )
 for (key in names(stats_computed)) {
+  # if integer, round to 0 decimal places, otherwise round to 2 decimal places
+  if (is.integer(stats_computed[[key]])) {
+    paper_stats$value[paper_stats$key == key] <- round(stats_computed[[key]], 0)
+  } else {
   paper_stats$value[paper_stats$key == key] <- round(stats_computed[[key]], 2)
+  }
 }
 write.csv(paper_stats, "paper/paper_stats.csv", row.names = FALSE)
 
@@ -179,22 +184,19 @@ ggsave("figures/empirical/neg_earnings_and_spell_over_time_slides.pdf", width = 
 # 2a Robustness to IRS Data ---------------
 
 # compare to IRS data
-irs_corp_returns_post94 <- read.csv("data/clean/irs_corp_returns.csv") %>%
+irs_corp_returns <- read.csv("data/clean/irs_corp_returns_combined.csv") %>%
   mutate(perc_neg_earnings = perc_neg_earnings * 100) %>%
-  filter(year >= 1994 & year <= 2019)
-
-irs_corps_returns_pre94 <- read.csv("data/clean/irs_corp_returns_pre94.csv") %>%
-  mutate(perc_neg_earnings = perc_neg_earnings * 100) %>%
-  filter(year >= 1980 & year < 1994)
-
-irs_corps_returns <- bind_rows(irs_corps_returns_pre94, irs_corp_returns_post94)
+  filter(year >= 1980 & year <= 2019)
 
 ggplot() +
   geom_line(data = neg_earnings_byyear, aes(x = date, y = neg_ebitda, color = "EBITDA < 0 (Compustat)"), linewidth = 2) +
   geom_point(data = neg_earnings_byyear, aes(x = date, y = neg_ebitda, color = "EBITDA < 0 (Compustat)"), size = 3) +
-  geom_line(data = irs_corps_returns, aes(x = year, y = perc_neg_earnings, color = "Net Income < 0 (IRS)"), linewidth = 2) +
-  geom_point(data = irs_corps_returns, aes(x = year, y = perc_neg_earnings, color = "Net Income < 0 (IRS)"), size = 3) +
-  scale_color_manual(values = setNames(palette_2, c("EBITDA < 0 (Compustat)", "Net Income < 0 (IRS)"))) +
+  geom_line(data = irs_corp_returns, aes(x = year, y = perc_neg_earnings, color = "Net Income < 0 (IRS)"), linewidth = 2) +
+  geom_point(data = irs_corp_returns, aes(x = year, y = perc_neg_earnings, color = "Net Income < 0 (IRS)"), size = 3) +
+  scale_color_manual(
+  values = setNames(palette_2, c("EBITDA < 0 (Compustat)", "Net Income < 0 (IRS)")),
+  labels = c("EBITDA < 0 (Compustat)", expression("Net Income" <= "0 (IRS)"))
+  ) +
   labs(
     x = "Year",
     y = "% with Negative Earnings",

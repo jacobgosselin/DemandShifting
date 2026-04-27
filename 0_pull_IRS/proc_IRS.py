@@ -34,8 +34,30 @@ for year in years_table22:
             break
 
     if net_income_row is None:
-        print(f"Could not find 'Returns with net income' row in {year}")
-        continue
+        # try to search column B if not found in column A
+        # (this bites for 2004-2006, where the table format changed and the key row is in column B instead of A)
+        found_in_col_b = False
+        for row_idx in range(sheet.nrows):
+            cell_value = str(sheet.cell_value(row_idx, 1))
+            if "returns with net income" in cell_value.lower():
+                net_income_row = row_idx
+                # if found in column B, we need to extract total_returns and returns_with_net_income from column C
+                total_returns = float(str(sheet.cell_value(row_idx-1, 2)).replace(',', ''))
+                returns_with_net_income = float(str(sheet.cell_value(row_idx, 2)).replace(',', ''))
+                print(f"{year}: total_returns = {total_returns:,.0f}, returns_with_net_income = {returns_with_net_income:,.0f}")
+                results.append({
+                    'year': year,
+                    'total_returns': total_returns,
+                    'returns_with_net_income': returns_with_net_income,
+                    'table_number': '22',
+                    'coverage': 'Returns of active corporations, other than Forms 1120-REIT, 1120-RIC, and 1120S',
+                    'url': 'https://www.irs.gov/statistics/soi-tax-stats-table-21-returns-of-active-corporations-other-than-forms-1120-reit-1120-ric-and-1120s'
+                })
+                print("Made it here")
+                found_in_col_b = True
+                break
+        if found_in_col_b:
+            continue # skip to next year since we already found the data
 
     # The "Total" row should be directly above
     total_row = net_income_row - 1
@@ -49,7 +71,10 @@ for year in years_table22:
     results.append({
         'year': year,
         'total_returns': total_returns,
-        'returns_with_net_income': returns_with_net_income
+        'returns_with_net_income': returns_with_net_income,
+        'table_number': '22',
+        'coverage': 'Returns of active corporations, other than Forms 1120-REIT, 1120-RIC, and 1120S',
+        'url': 'https://www.irs.gov/statistics/soi-tax-stats-table-21-returns-of-active-corporations-other-than-forms-1120-reit-1120-ric-and-1120s'
     })
 
 # ==============================================================================
@@ -104,7 +129,10 @@ for year in years_table53_54:
     results.append({
         'year': year,
         'total_returns': total_returns,
-        'returns_with_net_income': returns_with_net_income
+        'returns_with_net_income': returns_with_net_income,
+        'table_number': '5.3, 5.4',
+        'coverage': 'Returns of active corporations, other than Forms 1120-REIT, 1120-RIC, and 1120S',
+        'url': 'https://www.irs.gov/statistics/soi-tax-stats-table-21-returns-of-active-corporations-other-than-forms-1120-reit-1120-ric-and-1120s'
     })
 
 # ==============================================================================
@@ -120,6 +148,43 @@ print("\n=== Final Results (1994-2022) ===")
 print(df)
 
 # Export to CSV
-output_path = os.path.join("/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/data/clean/", "irs_corp_returns.csv")
+output_path = os.path.join("/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/data/clean/", "irs_corp_returns_post94.csv")
 df.to_csv(output_path, index=False)
 print(f"\nSaved to: {output_path}")
+
+# Combine with pre94 data (already constructed in clean data)
+pre94_path = os.path.join("/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/data/clean/", "irs_corp_returns_pre94.csv")
+pre94_df = pd.read_csv(pre94_path)
+# drop table_name
+pre94_df = pre94_df.drop(columns=['table_name'])
+# combine
+combined_df = pd.concat([pre94_df, df], ignore_index=True)
+combined_df.to_csv(os.path.join("/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/data/clean/", "irs_corp_returns_combined.csv"), index=False)
+
+# make latex table; make headers "Total Returns", "Returns with Net Income", "Percentage with No Income", "Table Number", "Coverage", "URL"
+# multiply perc_neg_earnings by 100 and round to 2 decimal places
+combined_df['perc_neg_earnings'] = (combined_df['perc_neg_earnings'] * 100).round(2)
+
+# drop trailing 0s in total returns, returns with net income, and percentage with no income
+combined_df['total_returns'] = combined_df['total_returns'].apply(lambda x: f"{x:,.0f}")
+combined_df['returns_with_net_income'] = combined_df['returns_with_net_income'].apply(lambda x: f"{x:,.0f}")
+combined_df['perc_neg_earnings'] = combined_df['perc_neg_earnings'].apply(lambda x: f"{x:.2f}".rstrip('0').rstrip('.'))
+# add % sign to percentage with no income
+combined_df['perc_neg_earnings'] = combined_df['perc_neg_earnings'].apply(lambda x: f"{x}\\%" if x != "0" else "0%")
+
+combined_df = combined_df.rename(columns={
+    'total_returns': 'Total Returns',
+    'returns_with_net_income': 'Returns with Net Income',
+    'perc_neg_earnings': '\\% without Net Income',
+    'table_number': 'Table Number',
+    'coverage': 'Coverage',
+    'url': 'URL'
+})
+# drop url
+combined_df = combined_df.drop(columns=['URL'])
+latex_table = combined_df.to_latex(index=False, escape=False)
+latex_output_path = os.path.join("/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/tables/", "irs_corp_returns_combined.tex")
+# save latex table to file
+with open(latex_output_path, 'w') as f:
+    f.write(latex_table)
+print(f"\nSaved LaTeX table to: {latex_output_path}")

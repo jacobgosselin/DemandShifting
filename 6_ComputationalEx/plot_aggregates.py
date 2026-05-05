@@ -191,7 +191,15 @@ axs[1].set_title("GDP Components (% Change From 1980)", fontsize=18)
 axs[1].legend(fontsize=16)
 axs[1].tick_params(axis="both", which="major", labelsize=16)
 axs[1].grid(True, alpha=0.3)
-_save("GDP_C_I_A_vs_phi.pdf", fig=fig)
+_save("GDP_C_I_A_vs_phi.pdf", fig=fig, close=False)
+gs = fig.add_gridspec(2, 1)
+axs[0].set_subplotspec(gs[0])
+axs[1].set_subplotspec(gs[1])
+fig.set_size_inches(10, 10)
+fig.tight_layout()
+_save("GDP_C_I_A_vs_phi_slides.pdf", fig=fig, close=True)
+
+
 
 
 # Figure 1c: Recover TFP
@@ -245,10 +253,6 @@ plt.legend(fontsize=16)
 plt.tick_params(axis="both", which="major", labelsize=16)
 plt.grid(True, alpha=0.3)
 _save("agg_labor_shares_vs_phi.pdf")
-# Print La, Lk, Ls values for reference
-print("\nAggregate labor allocations by year:")
-for yr, La, Lk, Ls in zip(years, La_vals, Lk_vals, Ls_vals):
-    print(f"  {yr}: La={La:.4f}, Lk={Lk:.4f}, Ls={Ls:.4f}")
 
 # Figure 4a: Two Panel: Aggregate labor allocations and sales weighted productivity
 fig, axs = plt.subplots(1, 2, figsize=(16, 9))
@@ -265,10 +269,17 @@ axs[1].set_xlabel("Year", fontsize=18)
 axs[1].set_title("Sales-Weighted Productivity (% Change From 1980 )", fontsize=18)
 axs[1].tick_params(axis="both", which="major", labelsize=16)
 axs[1].grid(True, alpha=0.3)
-_save("agg_labor_shares_and_productivity_vs_phi.pdf", fig=fig)
+_save("agg_labor_shares_and_productivity_vs_phi.pdf", fig=fig, close=False)
+gs = fig.add_gridspec(2, 1)
+axs[0].set_subplotspec(gs[0])
+axs[1].set_subplotspec(gs[1])
+fig.set_size_inches(10, 10)
+fig.tight_layout()
+_save("agg_labor_shares_and_productivity_vs_phi_slides.pdf", fig=fig)
+
 
 # Figure 5: Different C aggregates (fixed)
-plt.figure(figsize=(8, 6))
+fig = plt.figure(figsize=(8, 6))
 plt.plot(years, (c_vals/c_vals[0] - 1)*100, "o-", linewidth=3, markersize=10, label=r"C (Overall)", color=palette_3[0])
 plt.plot(years, (c_only_phi/c_vals[0] - 1)*100, "s-", linewidth=3, markersize=10, label=r"C (Fixed Choices)", color=palette_3[1])
 plt.plot(years, (c_phi_fixed/c_vals[0] - 1)*100, "^-", linewidth=3, markersize=10, label=r"C (Fixed $\phi$)", color=palette_3[2])
@@ -278,6 +289,9 @@ plt.legend(fontsize=16)
 plt.tick_params(axis="both", which="major", labelsize=16)
 plt.grid(True, alpha=0.3)
 _save("C_aggregates_vs_phi.pdf")
+fig.set_size_inches(10, 10)
+fig.tight_layout()
+_save("C_aggregates_vs_phi_slides.pdf", fig=fig)
 
 # Figure 6: 2-panel, Vm for 0 K, lines for 5 evenly-spaced m values
 # 1980 in panel 1, 2019 in panel 2

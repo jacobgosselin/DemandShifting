@@ -13,6 +13,13 @@ theme_common <- theme_minimal(base_size = 18) +
     legend.position = "bottom"
   )
 
+theme_slides <- theme_minimal(base_size = 32) +
+  theme(
+    text = element_text(family = "serif", size = 32),
+    plot.title = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
 # Load analysis data (m_stock already constructed by 3a_build_analysis_data.R) ----
 load("data/clean/analysis_data.RData")
 
@@ -86,6 +93,22 @@ ggplot(coef_m, aes(x = year, y = coef)) +
   theme_common
 
 ggsave("figures/empirical/sales_elasticity_m_by_year.pdf", width = 8, height = 6)
+
+ggplot(coef_m, aes(x = year, y = coef)) +
+  geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper), alpha = 0.15) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  labs(
+    title  = "",
+    x      = "Year",
+    y      = "Sales Elasticity",
+    color  = NULL,
+    fill   = NULL
+  ) +
+  theme_slides 
+
+ggsave("figures/empirical/sales_elasticity_m_by_year_slides.pdf", width = 10, height = 10)
+ 
 
 # Save coefficients ----
 # write.csv(coef_m, file.path(REPO_DIR, "6_ComputationalEx", "sales_elasticity_m_by_year.csv"), row.names = FALSE)

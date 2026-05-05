@@ -19,6 +19,13 @@ theme_common <- theme_minimal(base_size = 24) +
     legend.text = element_text(size = 24)
   )
 
+theme_slides <- theme_minimal(base_size = 32) +
+  theme(
+    text = element_text(family = "serif", size = 32),
+    legend.position = "bottom",
+    legend.text = element_text(size = 32)
+  )
+
 # a. Plot cost ratios over time (all firms) ------------------------------
 
 palette_4 <- viridis::inferno(4, begin = 0.0, end = 0.9)
@@ -36,7 +43,8 @@ cost_ratios_by_year <- analysis_data %>%
 cost_ratios_long <- cost_ratios_by_year %>%
   pivot_longer(cols = c(median_rd_sale, median_sga_sale, median_cogs_sale, median_capx_sale),
                names_to = "cost_type",
-               values_to = "median_ratio")
+               values_to = "median_ratio") %>%
+  mutate(cost_type = factor(cost_type, levels = c("median_cogs_sale", "median_sga_sale", "median_capx_sale", "median_rd_sale")))
 
 p_all <- ggplot(cost_ratios_long, aes(x = date, y = median_ratio, color = cost_type, group = cost_type)) +
   geom_line(linewidth = 2) +
@@ -57,6 +65,25 @@ p_all <- ggplot(cost_ratios_long, aes(x = date, y = median_ratio, color = cost_t
 
 ggsave("figures/empirical/cost_ratios_by_year.pdf", width = 8, height = 6)
 
+p_all <- ggplot(cost_ratios_long, aes(x = date, y = median_ratio, color = cost_type, group = cost_type)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_y_continuous(limits = c(0, 0.8)) +
+  scale_x_continuous(breaks = seq(1975, 2020, 5)) +
+  scale_color_manual(
+    values = palette_4,
+    labels = c("median_rd_sale" = "R&D", "median_sga_sale" = "SG&A", "median_cogs_sale" = "COGS", "median_capx_sale" = "CapEx")
+  ) +
+  labs(
+    title = "",
+    x = "Year",
+    y = "Median Ratio",
+    color = ""
+  ) +
+  theme_slides
+
+ggsave("figures/empirical/cost_ratios_by_year_slides.pdf", width = 10, height = 10)
+
 # b. Same but only for firms with EBITDA < 0 ----------------------------
 
 cost_ratios_neg_ebitda_by_year <- analysis_data %>%
@@ -68,12 +95,13 @@ cost_ratios_neg_ebitda_by_year <- analysis_data %>%
     median_cogs_sale = median(cogs_sale, na.rm = TRUE),
     median_capx_sale = median(capx_sale, na.rm = TRUE),
     .groups = "drop"
-  )
+  ) 
 
 cost_ratios_neg_long <- cost_ratios_neg_ebitda_by_year %>%
   pivot_longer(cols = c(median_rd_sale, median_sga_sale, median_cogs_sale, median_capx_sale),
                names_to = "cost_type",
-               values_to = "median_ratio")
+               values_to = "median_ratio") %>%
+  mutate(cost_type = factor(cost_type, levels = c("median_cogs_sale", "median_sga_sale", "median_capx_sale", "median_rd_sale")))
 
 p_neg <- ggplot(cost_ratios_neg_long, aes(x = date, y = median_ratio, color = cost_type, group = cost_type)) +
   geom_line(linewidth = 2) +
@@ -94,6 +122,25 @@ p_neg <- ggplot(cost_ratios_neg_long, aes(x = date, y = median_ratio, color = co
 
 ggsave("figures/empirical/cost_ratios_neg_ebitda_by_year.pdf", width = 8, height = 6)
 
+p_neg <- ggplot(cost_ratios_neg_long, aes(x = date, y = median_ratio, color = cost_type, group = cost_type)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_x_continuous(breaks = seq(1975, 2020, 5)) +
+  scale_y_continuous(limits = c(0, 0.8)) +
+  scale_color_manual(
+    values = palette_4,
+    labels = c("median_rd_sale" = "R&D", "median_sga_sale" = "SG&A", "median_cogs_sale" = "COGS", "median_capx_sale" = "CapEx")
+  ) +
+  labs(
+    title = "",
+    x = "Year",
+    y = "Median Ratio",
+    color = ""
+  ) +
+  theme_slides
+
+ggsave("figures/empirical/cost_ratios_neg_ebitda_by_year_slides.pdf", width = 10, height = 10)
+
 # c. 2-panel figure ----------------------------
 
 ggarrange(p_all, p_neg,
@@ -102,3 +149,8 @@ ggarrange(p_all, p_neg,
 
 ggsave("figures/empirical/cost_ratios_2panel.pdf", width = 16, height = 9)
 
+ggarrange(p_all, p_neg,
+          ncol = 1, nrow = 2,
+          common.legend = TRUE, legend = "bottom")
+
+ggsave("figures/empirical/cost_ratios_2panel_slides.pdf", width = 10, height = 10)

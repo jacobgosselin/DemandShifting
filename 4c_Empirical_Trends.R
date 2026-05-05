@@ -26,6 +26,8 @@ sector_year_data <- analysis_data %>%
     median_sga_sale = median(sga_sale),
     cust_capital = first(cust_capital),
     sd_ebitda = sd(ebitda),
+    sd_sales = sd(sale),
+    neg_spell = mean(neg_spell, na.rm = TRUE),
     n_firms = n(),
     .groups = "drop"
   ) %>%
@@ -70,7 +72,9 @@ sector_changes <- sector_year_data %>%
 # Sector-level panel regressions (year FE) --------------------------------
 
 reg_neg_earnings  <- feols(pct_negative ~ cust_capital | date, data = sector_year_data)
+reg_neg_spell     <- feols(neg_spell ~ cust_capital | date, data = sector_year_data)
 reg_sd_ebitda     <- feols(log(sd_ebitda) ~ cust_capital | date, data = sector_year_data)
+reg_sd_sales     <- feols(log(sd_sales) ~ cust_capital | date, data = sector_year_data)
 reg_left_tail     <- feols(log(left_tail) ~ cust_capital | date, data = sector_year_data)
 reg_right_tail    <- feols(log(right_tail) ~ cust_capital | date, data = sector_year_data)
 reg_med_mu        <- feols(log(med_mu) ~ cust_capital | date, data = sector_year_data)
@@ -87,8 +91,11 @@ reg_change_med_mu       <- feols(delta_med_mu ~ cust_capital,       data = secto
 
 texreg(list(
   reg_neg_earnings,
+  reg_neg_spell,
   reg_sd_ebitda
-), custom.model.names = c("Neg. EBITDA", "Std. Dev. EBITDA (logged)"),
+), custom.model.names = c("Avg. Pct. Neg.", "Avg. Neg. Spell", "Std. Dev."),
+# add custom header to list "EBITDA" as header row over custom model names
+  custom.header = list("EBITDA" = 1:3),
   omit.coef = "Constant",
   custom.coef.map = list("cust_capital" = "$I^{SM}$/Rev. (He et. al. 2025)"),
   file = "tables/sector_level_regs.tex",

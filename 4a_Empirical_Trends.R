@@ -32,6 +32,14 @@ theme_common <- theme_minimal(base_size = 18) +
     legend.position = "bottom"
   )
 
+theme_slides <- theme_minimal(base_size = 32) +
+  theme(
+    text = element_text(family = "serif", size = 32),
+    legend.position = "bottom"
+  )
+
+
+
 palette_2 <- viridis::inferno(2, begin = 0.0, end = 0.9)
 palette_3 <- viridis::inferno(3, begin = 0.0, end = 0.9)
 palette_4 <- viridis::inferno(4, begin = 0.0, end = 0.9)
@@ -178,8 +186,35 @@ neg_ebitda_spell_plot <- ggplot(neg_earnings_byyear, aes(x = date, y = neg_ebitd
 
 ggarrange(neg_ebitda_plot, neg_ebitda_spell_plot, ncol = 2, nrow = 1)
 ggsave("figures/empirical/neg_earnings_and_spell_over_time.pdf", width = 16, height = 9)
-ggarrange(neg_ebitda_plot, neg_ebitda_spell_plot, ncol = 1, nrow = 2)
-ggsave("figures/empirical/neg_earnings_and_spell_over_time_slides.pdf", width = 8, height = 12)
+
+# overlay neg_ebitda and neg_ebitda_spell in in 1 plot for slides
+# have dual y-axis for neg_spell, and scale neg_spell for min and max to match the range of neg_ebitda (0 to 100)
+spell_min <- min(neg_earnings_byyear$neg_ebitda_spell, na.rm = TRUE)
+spell_max <- max(neg_earnings_byyear$neg_ebitda_spell, na.rm = TRUE)
+ebitda_min <- min(neg_earnings_byyear$neg_ebitda, na.rm = TRUE)
+ebitda_max <- max(neg_earnings_byyear$neg_ebitda, na.rm = TRUE)
+
+neg_earnings_byyear$neg_ebitda_spell_scaled <- (neg_earnings_byyear$neg_ebitda_spell - spell_min) / (spell_max - spell_min) * (ebitda_max - ebitda_min) + ebitda_min
+
+ggplot(neg_earnings_byyear, aes(x = date)) +
+  geom_line(aes(y = neg_ebitda, color = "Percent of Firms Reporting Lo"), linewidth = 2) +
+  geom_point(aes(y = neg_ebitda, color = "Percent with EBITDA < 0"), size = 3) +
+  geom_line(aes(y = neg_ebitda_spell_scaled, color = "Average Negative Spell Length"), linewidth = 2) +
+  geom_point(aes(y = neg_ebitda_spell_scaled, color = "Average Negative Spell Length"), size = 3) +
+  scale_color_manual(values = setNames(palette_2, c("Percent with EBITDA < 0", "Average Negative Spell Length"))) +
+  scale_y_continuous(
+    name = "Percent with EBITDA < 0",
+    sec.axis = sec_axis(~ (. - ebitda_min) / (ebitda_max - ebitda_min) * (spell_max - spell_min) + spell_min, name = "Average Negative Spell Length (Years)")
+  ) +
+  labs(
+    x = "Year",
+    y = "",
+    title = "",
+    color = ""
+  ) +
+  theme_common_2panel
+
+ggsave("figures/empirical/neg_earnings_and_spell_over_time_slides.pdf", width = 10, height = 10)
   
 # 2a Robustness to IRS Data ---------------
 
@@ -205,6 +240,23 @@ ggplot() +
   theme_common
 
 ggsave("figures/empirical/pct_negative_earnings_compustat_vs_irs.pdf", width = 8, height = 6)
+
+ggplot() +
+  geom_line(data = neg_earnings_byyear, aes(x = date, y = neg_ebitda, color = "EBITDA < 0 (Compustat)"), linewidth = 2) +
+  geom_point(data = neg_earnings_byyear, aes(x = date, y = neg_ebitda, color = "EBITDA < 0 (Compustat)"), size = 3) +
+  geom_line(data = irs_corp_returns, aes(x = year, y = perc_neg_earnings, color = "Net Income < 0 (IRS)"), linewidth = 2) +
+  geom_point(data = irs_corp_returns, aes(x = year, y = perc_neg_earnings, color = "Net Income < 0 (IRS)"), size = 3) +
+  scale_color_manual(
+  values = setNames(palette_2, c("EBITDA < 0 (Compustat)", "Net Income < 0 (IRS)")),
+  labels = c("EBITDA < 0 (Compustat)", expression("Net Income" <= "0 (IRS)"))
+  ) +
+  labs(
+    x = "Year",
+    y = "% with Negative Earnings",
+    color = ""
+  ) +
+  theme_slides
+ggsave("figures/empirical/pct_negative_earnings_compustat_vs_irs_slides.pdf", width = 10, height = 10)
 
 # 2b Robustness to alternative earnings ---------------
 
@@ -249,7 +301,7 @@ ggarrange(neg_earnings_plot, neg_spells_plot, ncol = 2, nrow = 1, common.legend 
 ggsave("figures/empirical/negative_earnings_alt_measures.pdf", width = 16, height = 9)
 
 ggarrange(neg_earnings_plot, neg_spells_plot, ncol = 1, nrow = 2, common.legend = TRUE, legend = "bottom")
-ggsave("figures/empirical/negative_earnings_alt_measures_slides.pdf", width = 8, height = 12)
+ggsave("figures/empirical/negative_earnings_alt_measures_slides.pdf", width = 10, height = 10)
 
 
 # 2c (mean/median). Average and median EBITDA/Sales over time ----------------
@@ -346,7 +398,7 @@ ggplot(top_decile_sales_long, aes(x = date, y = log_change, color = percentile, 
   scale_color_manual(
     values = setNames(palette_4,
                       c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")),
-    labels = c("log_change_p75" = "|P75 - Median|", "log_change_p90" = "|P90 - Median|", "log_change_p95" = "|P95 - Median|", "log_change_p99" = "|P99 - Median|"),
+    labels = c("log_change_p75" = "|P75 - Med.|", "log_change_p90" = "|P90 - Med.|", "log_change_p95" = "|P95 - Med.|", "log_change_p99" = "|P99 - Med.|"),
     breaks = c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")
   ) +
   labs(
@@ -368,7 +420,7 @@ top_quantiles_sales <- ggplot(top_decile_sales_long, aes(x = date, y = log_chang
   scale_color_manual(
     values = setNames(palette_4,
                       c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")),
-    labels = c("log_change_p75" = "|P75 - Median|", "log_change_p90" = "|P90 - Median|", "log_change_p95" = "|P95 - Median|", "log_change_p99" = "|P99 - Median|"),
+    labels = c("log_change_p75" = "P75 - Med.", "log_change_p90" = "P90 - Med.", "log_change_p95" = "P95 - Med.", "log_change_p99" = "P99 - Med."),
     breaks = c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")
   ) +
   labs(
@@ -425,7 +477,7 @@ ggplot(bottom_quantile_sales_long, aes(x = date, y = log_change, color = percent
   scale_color_manual(
     values = setNames(palette_4,
                       c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")),
-    labels = c("log_change_p25" = "|Median - P25|", "log_change_p10" = "|Median - P10|", "log_change_p5" = "|Median - P5|", "log_change_p1" = "|Median - P1|"),
+    labels = c("log_change_p25" = "|Med. - P25|", "log_change_p10" = "|Med. - P10|", "log_change_p5" = "|Med. - P5|", "log_change_p1" = "|Med. - P1|"),
     breaks = c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")
   ) +
   labs(
@@ -447,7 +499,7 @@ bottom_quantiles_sales <- ggplot(bottom_quantile_sales_long, aes(x = date, y = l
   scale_color_manual(
     values = setNames(palette_4,
                       c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")),
-    labels = c("log_change_p25" = "|Median - P25|", "log_change_p10" = "|Median - P10|", "log_change_p5" = "|Median - P5|", "log_change_p1" = "|Median - P1|"),
+    labels = c("log_change_p25" = "Med. - P25", "log_change_p10" = "Med. - P10", "log_change_p5" = "Med. - P5", "log_change_p1" = "Med. - P1"),
     breaks = c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")
   ) +
   labs(
@@ -536,7 +588,7 @@ ggplot(top_decile_long, aes(x = date, y = log_change, color = percentile, group 
   scale_color_manual(
     values = setNames(palette_4,
                       c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")),
-    labels = c("log_change_p75" = "|P75 - Median|", "log_change_p90" = "|P90 - Median|", "log_change_p95" = "|P95 - Median|", "log_change_p99" = "|P99 - Median|"),
+    labels = c("log_change_p75" = "|P75 - Med.|", "log_change_p90" = "|P90 - Med.|", "log_change_p95" = "|P95 - Med.|", "log_change_p99" = "|P99 - Med.|"),
     breaks = c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")
   ) +
   labs(
@@ -558,7 +610,7 @@ top_quantiles_earnings <- ggplot(top_decile_long, aes(x = date, y = log_change, 
   scale_color_manual(
     values = setNames(palette_4,
                       c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")),
-    labels = c("log_change_p75" = "|P75 - Median|", "log_change_p90" = "|P90 - Median|", "log_change_p95" = "|P95 - Median|", "log_change_p99" = "|P99 - Median|"),
+    labels = c("log_change_p75" = "P75 - Med.", "log_change_p90" = "P90 - Med.", "log_change_p95" = "P95 - Med.", "log_change_p99" = "P99 - Med."),
     breaks = c("log_change_p75", "log_change_p90", "log_change_p95", "log_change_p99")
   ) +
   labs(
@@ -615,7 +667,7 @@ ggplot(bottom_quantile_long, aes(x = date, y = log_change, color = percentile, g
   scale_color_manual(
     values = setNames(palette_4,
                       c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")),
-    labels = c("log_change_p25" = "|Median - P25|", "log_change_p10" = "|Median - P10|", "log_change_p5" = "|Median - P5|", "log_change_p1" = "|Median - P1|"),
+    labels = c("log_change_p25" = "|Med. - P25|", "log_change_p10" = "|Med. - P10|", "log_change_p5" = "|Med. - P5|", "log_change_p1" = "|Med. - P1|"),
     breaks = c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")
   ) +
   labs(
@@ -637,7 +689,7 @@ bottom_quantiles_earnings <- ggplot(bottom_quantile_long, aes(x = date, y = log_
   scale_color_manual(
     values = setNames(palette_4,
                       c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")),
-    labels = c("log_change_p25" = "|Median - P25|", "log_change_p10" = "|Median - P10|", "log_change_p5" = "|Median - P5|", "log_change_p1" = "|Median - P1|"),
+    labels = c("log_change_p25" = "Med. - P25", "log_change_p10" = "Med. - P10", "log_change_p5" = "Med. - P5", "log_change_p1" = "Med. - P1"),
     breaks = c("log_change_p25", "log_change_p10", "log_change_p5", "log_change_p1")
   ) +
   labs(
@@ -656,6 +708,11 @@ ggsave("figures/empirical/top_quantiles_earnings_sales.pdf", width = 16, height 
 ggarrange(bottom_quantiles_sales, bottom_quantiles_earnings, ncol = 2, nrow = 1, common.legend = TRUE, legend = "bottom")
 ggsave("figures/empirical/bottom_quantiles_earnings_sales.pdf", width = 16, height = 9)
 
+ggarrange(top_quantiles_sales, bottom_quantiles_sales, ncol = 1, nrow = 2, common.legend = FALSE)
+ggsave("figures/empirical/all_quantiles_sales_slides.pdf", width = 10, height = 10)
+ggarrange(top_quantiles_earnings, bottom_quantiles_earnings, ncol = 1, nrow = 2, common.legend = FALSE)
+ggsave("figures/empirical/all_quantiles_earnings_slides.pdf", width = 10, height = 10)
+
 # 4e: Joint plot of log sd earnings + log sd sales over time ----------------
 # add dashed lines for log iqr of earnings and sales
 iqr_sd_joint <- analysis_data %>%
@@ -667,30 +724,6 @@ iqr_sd_joint <- analysis_data %>%
     log_sd_sales = log(sd(sale))
   ) %>%
   pivot_longer(cols = c(log_iqr_ebitda, log_iqr_sales, log_sd_ebitda, log_sd_sales), names_to = "series", values_to = "value")
-
-# sd_joint <- bind_rows(
-#   sd_by_year       %>% mutate(series = "EBITDA"),
-#   sd_sales_by_year %>% mutate(series = "Sales")
-# )
-
-# ggplot(sd_joint, aes(x = date, y = log_sd, color = series, group = series)) +
-#   geom_line(linewidth = 2) +
-#   geom_point(size = 3) +
-#   scale_x_continuous(breaks = seq(1980, 2020, 5)) +
-#   scale_color_manual(
-#     values = setNames(palette_2, c("EBITDA", "Sales")),
-#     labels = c("EBITDA" = "EBITDA", "Sales" = "Sales")
-#   ) +
-#   labs(
-#     title = "",
-#     subtitle = "",
-#     x = "Year",
-#     y = "Std. Deviation (Logged)",
-#     color = ""
-#   ) +
-#   theme_common
-
-# ggsave("figures/empirical/sd_joint_by_year.pdf", width = 8, height = 6)
 
 iqr_sd_joint %>%
   mutate(
@@ -730,6 +763,55 @@ iqr_sd_joint %>%
   theme_common
 
 ggsave("figures/empirical/iqr_joint_by_year.pdf", width = 8, height = 6)
+
+# plot for slides: IQR/SD of earnings (1 plot) and IQR/SD of sales (1 plot)
+
+ggplot(iqr_sd_joint %>% filter(grepl("ebitda", series)) %>%
+         mutate(
+           measure = ifelse(grepl("iqr", series), "IQR", "SD"),
+           label   = factor(measure, levels = c("IQR", "SD"))
+         ),
+       aes(x = date, y = value, color = label)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+  scale_color_manual(
+    name = "",
+    values = setNames(palette_2, c("IQR", "SD"))
+  ) + 
+  labs(
+    title = "",
+    subtitle = "",
+    x = "Year",
+    y = "Dispersion (Logged)"
+  ) +
+  theme_slides
+
+
+ggsave("figures/empirical/iqr_sd_earnings_slides.pdf", width = 10, height = 10)
+
+ggplot(iqr_sd_joint %>% filter(grepl("sales", series)) %>%
+         mutate(
+           measure = ifelse(grepl("iqr", series), "IQR", "SD"),
+           label   = factor(measure, levels = c("IQR", "SD"))
+         ),
+       aes(x = date, y = value, color = label)) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+  scale_color_manual(
+    name = "",
+    values = setNames(palette_2, c("IQR", "SD"))
+  ) + 
+  labs(
+    title = "",
+    subtitle = "",
+    x = "Year",
+    y = "Dispersion (Logged)"
+  ) +
+  theme_slides
+
+ggsave("figures/empirical/iqr_sd_sales_slides.pdf", width = 10, height = 10)
 
 
 # 5: Bar plot of negative earnings by 2-digit NAICS sector ----------------------
@@ -785,6 +867,28 @@ ggplot(sector_2digit_long, aes(x = as.factor(naics_2digit),
   theme_common
 
 ggsave("figures/empirical/neg_earnings_by_sector_2digit.pdf", width = 8, height = 6)
+
+ggplot(sector_2digit_long, aes(x = as.factor(naics_2digit),
+                                # x = reorder(as.factor(naics_2digit), -value * (metric == "pct_negative_late")),
+                                y = value, fill = metric)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+  scale_fill_manual(
+    breaks = c("pct_negative_late", "change_pct_negative"),
+    values = setNames(palette_2, c("pct_negative_late", "change_pct_negative")),
+    labels = c("pct_negative_late" = "% Neg. Earnings \n (2014-2019)",
+               "change_pct_negative" = "Change in % Neg. Earnings \n (1980-1984 to 2014-2019)")
+  ) +
+  labs(
+    title = "",
+    subtitle = "",
+    x = "Sector",
+    y = "",
+    fill = ""
+  ) +
+  theme_slides
+
+ggsave("figures/empirical/neg_earnings_by_sector_2digit_slides.pdf", width = 10, height = 10)
+
 
 # Earnings concentration among top 10%, 5%, 1%, and 0.1% over time --------
 

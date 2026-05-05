@@ -109,7 +109,8 @@ analysis_data <- analysis_data %>%
   group_by(gvkey) %>%
   arrange(gvkey, date) %>%
   mutate(
-    founding_imputed = ifelse(is.na(founding), date - avg_dist_firstobs, founding),
+    first_date = first(date),
+    founding_imputed = ifelse(is.na(founding), first_date - avg_dist_firstobs, founding),
     age = date - founding_imputed,
     m_stock = {
       delta <- delta_m
@@ -143,7 +144,8 @@ analysis_data <- analysis_data %>%
     neg_ebitda    = as.numeric(ebitda < 0),
     neg_pi        = as.numeric(pi < 0),
     neg_ni        = as.numeric(ni < 0),
-    neg_profits   = as.numeric((sale - cogs - xsga - capx) < 0),
+    profits       = sale - cogs - xsga - capx,
+    neg_profits   = as.numeric(profits < 0),
     rd            = xrd + rdip,
     rd_sale_raw   = rd / sale,
     sga_sale_raw  = sga / sale,

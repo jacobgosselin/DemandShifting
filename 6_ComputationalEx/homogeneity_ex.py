@@ -14,7 +14,7 @@ _default_figures = os.path.join(
     os.path.expanduser("~"),
     "Library/CloudStorage/"
     "GoogleDrive-jacob.gosselin@u.northwestern.edu/"
-    "My Drive/research_ideas/negative_earnings/figures/quantitative",
+    "My Drive/research_ideas/negative_earnings/figures/misc",
 )
 FIGURES_DIR = os.environ.get("DEMANDSHIFT_FIGURES_DIR", _default_figures)
 
@@ -82,20 +82,20 @@ print("Homogeneity exercise: sweeping z_a")
 print("="*60)
 c_za = _sweep_consumption(z_vals, vary="z_a")
 
-fig_hom, ax_hom = plt.subplots(figsize=(8, 6))
+fig_hom, ax_hom = plt.subplots(figsize=(10, 10))
 ax_hom.plot(z_vals, c_zk, "o-", linewidth=5, markersize=10,
             color=palette_2[1], label=r"Scaling Inv.")
 ax_hom.plot(z_vals, c_za, "s-", linewidth=5, markersize=10,
             color=palette_2[0], label=r"Scaling Adv.")
-ax_hom.set_xlabel("Scale Parameter", fontsize=24)
-ax_hom.set_ylabel(r"Consumption", fontsize=24)
+ax_hom.set_xlabel("Scale Parameter", fontsize=32)
+ax_hom.set_ylabel(r"Consumption", fontsize=32)
 ax_hom.set_title("")
-ax_hom.legend(fontsize=24)
+ax_hom.legend(fontsize=32)
 ax_hom.grid(True, alpha=0.3)
 # set ticksize to 18
 ax_hom.tick_params(axis='both', which='major', labelsize=18)
 fig_hom.tight_layout()
-_hom_path = os.path.join(FIGURES_DIR, "homogeneity_consumption.pdf")
+_hom_path = os.path.join(FIGURES_DIR, "homogeneity_ex.pdf")
 fig_hom.savefig(_hom_path, dpi=150, bbox_inches="tight")
 plt.close(fig_hom)
 print(f"\n  Saved homogeneity figure → {_hom_path}")

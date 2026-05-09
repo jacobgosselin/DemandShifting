@@ -69,7 +69,7 @@ The structural model is a heterogeneous-firm general equilibrium with two endoge
 
 ### Solver modules (`ss_solver/`)
 - `solve_eqm.py` — steady-state equilibrium solver (`EqmParams` class, least-squares market clearing)
-- `solve_vf.py` — EGM value function iteration (Rouwenhorst grid for productivity, exponential grid for capital/customer capital)
+- `solve_vf.py` — EGM value function iteration (I actually iterate on the marginal value functions, using the envelope condition)
 - `integrate_dist.py` — stationary distribution computation and aggregate moment extraction
 - `prod_fncts.py` — production function, labor demand, and CES aggregator
 

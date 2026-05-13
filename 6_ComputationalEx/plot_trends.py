@@ -29,6 +29,7 @@ from ss_solver.integrate_dist import (
     median_earnings, mean_earnings, avg_firm_earnings_path, avg_neg_spell_cohort, percentile_from_cdf
 )
 from ss_solver.prod_fncts import *
+from ss_solver.solve_eqm import check_tvc
 
 # -----------------------------------------------------------------------------
 # Paths
@@ -58,7 +59,13 @@ with open(pkl_path, "rb") as f:
 
 years = sorted(eqms.keys())
 
-print(f"Loaded {len(eqms)} equilibria for years {years[0]}–{years[-1]}.\n")
+print(f"Loaded {len(eqms)} equilibria for years {years[0]}–{years[-1]}.")
+print("Checking transversality condition ...")
+for yr in years:
+    passed, rep = check_tvc(eqms[yr])
+    if passed:
+        print(f"  {yr}: TVC OK (m_bnd={rep['m_bnd_frac']*100:.3f}%, k_bnd={rep['k_bnd_frac']*100:.3f}%)")
+print()
 
 # Load empirical time-series moments (produced by 5b_exog_params.R)
 _emp_csv = os.path.join(_DIR, "data", "empirical_trends_byyear.csv")

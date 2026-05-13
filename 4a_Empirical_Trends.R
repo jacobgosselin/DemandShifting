@@ -197,7 +197,7 @@ ebitda_max <- max(neg_earnings_byyear$neg_ebitda, na.rm = TRUE)
 neg_earnings_byyear$neg_ebitda_spell_scaled <- (neg_earnings_byyear$neg_ebitda_spell - spell_min) / (spell_max - spell_min) * (ebitda_max - ebitda_min) + ebitda_min
 
 ggplot(neg_earnings_byyear, aes(x = date)) +
-  geom_line(aes(y = neg_ebitda, color = "Percent of Firms Reporting Lo"), linewidth = 2) +
+  geom_line(aes(y = neg_ebitda, color = "Percent with EBITDA < 0"), linewidth = 2) +
   geom_point(aes(y = neg_ebitda, color = "Percent with EBITDA < 0"), size = 3) +
   geom_line(aes(y = neg_ebitda_spell_scaled, color = "Average Negative Spell Length"), linewidth = 2) +
   geom_point(aes(y = neg_ebitda_spell_scaled, color = "Average Negative Spell Length"), size = 3) +

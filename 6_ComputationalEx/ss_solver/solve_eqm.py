@@ -158,3 +158,52 @@ def solve_ss_equilibrium_least_squares(m_grid, k_grid, z_grid, Pi,
         print("||res|| =", float(np.linalg.norm(out["residuals"])))
         print("LS message:", ls.message)
     return out
+
+
+def check_tvc(eqm, boundary_pts=5, threshold=0.01):
+    """
+    Check that the stationary distribution does not pile up at the upper
+    grid boundaries for m and k.  If it does, the grid is truncating the
+    support and the transversality condition is effectively violated.
+
+    Parameters
+    ----------
+    eqm : dict  — equilibrium dict as returned by solve_ss_equilibrium_least_squares
+                  or loaded from pickle
+    boundary_pts : int  — number of top grid points counted as "boundary"
+    threshold : float  — fraction of total mass that triggers a warning (default 1%)
+
+    Returns
+    -------
+    passed : bool
+    report : dict  with keys m_bnd_frac, k_bnd_frac, boundary_pts, threshold
+    """
+    dist  = eqm["Dist"]
+    total = dist.sum()
+
+    m_bnd_frac = dist[-boundary_pts:, :, :].sum() / total
+    k_bnd_frac = dist[:, -boundary_pts:, :].sum() / total
+
+    passed = True
+    if m_bnd_frac > threshold:
+        print(
+            f"  [TVC WARNING] {m_bnd_frac*100:.2f}% of distribution mass is at "
+            f"top {boundary_pts} m-grid points (threshold {threshold*100:.1f}%). "
+            "Grid may be too tight — m_grid upper bound should be raised."
+        )
+        passed = False
+    if k_bnd_frac > threshold:
+        print(
+            f"  [TVC WARNING] {k_bnd_frac*100:.2f}% of distribution mass is at "
+            f"top {boundary_pts} k-grid points (threshold {threshold*100:.1f}%). "
+            "Grid may be too tight — k_grid upper bound should be raised."
+        )
+        passed = False
+
+    report = {
+        "m_bnd_frac": m_bnd_frac,
+        "k_bnd_frac": k_bnd_frac,
+        "boundary_pts": boundary_pts,
+        "threshold": threshold,
+    }
+    return passed, report

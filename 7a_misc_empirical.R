@@ -179,7 +179,7 @@ neg_spell_bycohort$cohort <- factor(neg_spell_bycohort$cohort, levels = cohort_l
 
 neg_spell_bycohort_long <- neg_spell_bycohort %>%
   pivot_longer(cols = c(avg_neg_earnings_spell, avg_neg_profits_spell), names_to = "variable", values_to = "value") %>%
-  mutate(variable = recode(variable, avg_neg_earnings_spell = "Negative EBITDA", avg_neg_profits_spell = "Negative Profits"))
+  mutate(variable = recode(variable, avg_neg_earnings_spell = "EBITDA", avg_neg_profits_spell = "Profits"))
 
 palette_2 <- viridis::inferno(2, begin = 0.0, end = 0.9)
 theme_common <- theme_minimal(base_size = 18) +
@@ -190,7 +190,7 @@ theme_common <- theme_minimal(base_size = 18) +
 ggplot(neg_spell_bycohort_long, aes(x = cohort, y = value, color = variable, group = variable)) +
   geom_line(linewidth = 2) +
   geom_point(aes(size = n_firms)) +
-  scale_color_manual(values = c("Negative EBITDA" = palette_2[1], "Negative Profits" = palette_2[2])) +
+  scale_color_manual(values = c("EBITDA" = palette_2[1], "Profits" = palette_2[2])) +
   scale_size_continuous(name = "", range = c(1, 5)) +
   labs(x = "Cohort (Entry Window)", y = "Average Spell Length (capped at 10)", color = "") +
   theme_common +
@@ -201,7 +201,7 @@ ggsave("figures/empirical/neg_spell_bycohort.pdf", width = 8, height = 6)
 ggplot(neg_spell_bycohort_long, aes(x = cohort, y = value, color = variable, group = variable)) +
   geom_line(linewidth = 2) +
   geom_point(aes(size = n_firms)) +
-  scale_color_manual(values = c("Negative EBITDA" = palette_2[1], "Negative Profits" = palette_2[2])) +
+  scale_color_manual(values = c("EBITDA" = palette_2[1], "Profits" = palette_2[2])) +
   scale_size_continuous(name = "", range = c(3, 6)) +
   labs(x = "Cohort (Entry Window)", y = "Average Spell Length", color = "") +
   theme_slides +

@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep \"\\\\.py$\")"
+      "Bash(grep \"\\\\.py$\")",
+      "Read(//Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/slides/**)"
     ]
   }
 }

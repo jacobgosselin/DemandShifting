@@ -44,7 +44,8 @@ palette_3 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 3)]
 
 from ss_solver.integrate_dist import (
     pct_negative, est_dist, est_sd, median_adv_ratio,
-    median_inv_ratio, median_cogs_ratio, avg_neg_spell_cohort
+    median_inv_ratio, median_cogs_ratio, avg_neg_spell_cohort,
+    top_pct_sales_share
 )
 from ss_solver.prod_fncts import *
 from ss_solver.solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
@@ -131,6 +132,9 @@ fig, axes = plt.subplots(n_scans, 4, figsize=(16, 12))
 if n_scans == 1:
     axes = axes[np.newaxis, :]
 
+# Collect top-1% data per scan for the summary figure below
+_top1_data = {}  # pname -> (param_vals, top1pct_vals)
+
 for i, scan in enumerate(SCANS):
     pname  = scan["name"]
     plabel = scan["label"]
@@ -160,6 +164,7 @@ for i, scan in enumerate(SCANS):
     sd_earnings_raw, sd_sales_raw = [], []
     med_adv_all, med_inv_all, med_cogs_all = [], [], []
     avg_neg_vals = []
+    top1pct_vals = []
 
     for pv in param_vals:
         eqm    = eqms[pv]
@@ -169,6 +174,7 @@ for i, scan in enumerate(SCANS):
 
         p_vals.append(pv)
         pct_neg_vals.append(pct_negative(m_grid, k_grid, z_grid, eqm))
+        top1pct_vals.append(top_pct_sales_share(m_grid, k_grid, z_grid, eqm, threshold=0.90))
         _, earnings_cdf = est_dist(m_grid, k_grid, z_grid, eqm, "earnings")
         _, sales_cdf    = est_dist(m_grid, k_grid, z_grid, eqm, "revenue")
         sd_earnings_raw.append(est_sd(earnings_cdf))
@@ -282,9 +288,34 @@ for i, scan in enumerate(SCANS):
     plt.close(fig2)
     print(f"  Saved 2x2 figure → {out_path_2x2}")
 
+    _top1_data[pname] = (param_vals, top1pct_vals, plabel)
+
 
 fig.tight_layout()
 out_path = os.path.join(FIGURES_DIR, "alt_paths_combined.pdf")
 fig.savefig(out_path, dpi=150, bbox_inches="tight")
 plt.close(fig)
 print(f"\n  Saved combined figure → {out_path}")
+
+# -----------------------------------------------------------------------------
+# 1x4 figure: top-1% sales share across scans
+# -----------------------------------------------------------------------------
+
+_top1_scans = [(pname, pvs, t1, lbl) for pname, (pvs, t1, lbl) in _top1_data.items()]
+fig_top1, axes_top1 = plt.subplots(1, len(_top1_scans), figsize=(5 * len(_top1_scans), 5))
+if len(_top1_scans) == 1:
+    axes_top1 = [axes_top1]
+
+for j, (pname, pvs, t1_vals, plabel) in enumerate(_top1_scans):
+    ax = axes_top1[j]
+    ax.plot(pvs, t1_vals, "o-", linewidth=3, markersize=10, color="black")
+    ax.set_xlabel(plabel)
+    ax.set_ylabel("Sales Share (%)" if j == 0 else "")
+    ax.set_title("Top 10% Sales Share")
+    ax.grid(True, alpha=0.3)
+
+fig_top1.tight_layout()
+out_top1 = os.path.join(FIGURES_DIR, "alt_paths_top10pct_sales_share.pdf")
+fig_top1.savefig(out_top1, dpi=150, bbox_inches="tight")
+plt.close(fig_top1)
+print(f"\n  Saved top-10% sales share figure → {out_top1}")

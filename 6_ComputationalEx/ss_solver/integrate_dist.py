@@ -213,6 +213,15 @@ def median_cogs_ratio(m_grid, k_grid, z_grid, eqm, negative_earnings_only=False)
         cogs_cdf = cdf(filtered_pdf)
     return median_from_cdf(cogs_cdf)
 
+def top_pct_sales_share(m_grid, k_grid, z_grid, eqm, threshold=0.90):
+    """Sales share of firms above `threshold` percentile by revenue (returns 0-100)."""
+    rev_pdf, rev_cdf = est_dist(m_grid, k_grid, z_grid, eqm, 'revenue')
+    cutoff = percentile_from_cdf(rev_cdf, threshold)
+    mask = rev_pdf[:, 0] >= cutoff
+    top_sales = np.sum(rev_pdf[mask, 0] * rev_pdf[mask, 1])
+    total_sales = np.sum(rev_pdf[:, 0] * rev_pdf[:, 1])
+    return 100.0 * top_sales / total_sales if total_sales > 0 else np.nan
+
 def pct_negative(m_grid, k_grid, z_grid, eqm):
     """Compute percent of firms with earnings < 0 (returns 0-100)."""
     earn_pdf, _ = est_dist(m_grid, k_grid, z_grid, eqm, 'earnings')

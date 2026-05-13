@@ -122,6 +122,10 @@ for yr in years:
 
     m_bnd_vals.append(np.sum(dist[-10:, :, :]) / np.sum(dist))
     k_bnd_vals.append(np.sum(dist[:, -10:, :]) / np.sum(dist))
+    print("m_boundary_mass (upper):", np.sum(dist[-10:, :, :]) / np.sum(dist))
+    print("k_boundary_mass (upper):", np.sum(dist[:, -10:, :]) / np.sum(dist))
+    print("m_boundary_mass (lower):", np.sum(dist[:10, :, :]) / np.sum(dist))
+    print("k_boundary_mass (lower):", np.sum(dist[:, :10, :]) / np.sum(dist))
 
     _, earnings_cdf = est_dist(m_grid, k_grid, z_grid, eqm, "earnings")
     _, sales_cdf    = est_dist(m_grid, k_grid, z_grid, eqm, "revenue")

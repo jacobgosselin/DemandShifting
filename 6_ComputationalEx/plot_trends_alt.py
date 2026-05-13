@@ -86,18 +86,24 @@ SCANS = [
     #     "attr":  "phi",
     #     "label": r"$\phi$ (Kunal)",
     # },
-    {
-        "name":  "sigma",
-        "pkl":   "eqm_sigma_path.pkl",
-        "attr":  "sigma",
-        "label": r"$\sigma$",
-    },
-    {
-        "name":  "beta",
-        "pkl":   "eqm_beta_path.pkl",
-        "attr":  "beta",
-        "label": r"$\beta$",
-    },
+    # {
+    #     "name":  "sigma",
+    #     "pkl":   "eqm_sigma_path.pkl",
+    #     "attr":  "sigma",
+    #     "label": r"$\sigma$",
+    # },
+    # {
+    #     "name":  "beta",
+    #     "pkl":   "eqm_beta_path.pkl",
+    #     "attr":  "beta",
+    #     "label": r"$\beta$",
+    # },
+    # {
+    #     "name":  "alpha_a",
+    #     "pkl":   "eqm_alpha_a_path.pkl",
+    #     "attr":  "alpha_a",
+    #     "label": r"$\alpha_a$",
+    # },
     # {
     #     "name":  "sigma_eps",
     #     "pkl":   "eqm_sigma_eps_path.pkl",
@@ -171,6 +177,18 @@ for i, scan in enumerate(SCANS):
         m_grid = eqm["m_grid"]
         k_grid = eqm["k_grid"]
         z_grid = eqm["z_grid"]
+
+        # check mass at boundary for choice grids
+        dist = eqm["Dist"]
+        print("m_boundary_mass (upper):", np.sum(dist[-10:, :, :]) / np.sum(dist))
+        print("k_boundary_mass (upper):", np.sum(dist[:, -10:, :]) / np.sum(dist))
+        print("m_boundary_mass (lower):", np.sum(dist[:10, :, :]) / np.sum(dist))
+        print("k_boundary_mass (lower):", np.sum(dist[:, :10, :]) / np.sum(dist))
+        # check maximum k and m point with non-zero mass
+        m_nonzero = np.where(np.sum(dist, axis=(1, 2)) > 0)[0]
+        k_nonzero = np.where(np.sum(dist, axis=(0, 2)) > 0)[0]
+        print("Max m with non-zero mass:", m_grid[m_nonzero[-1]])
+        print("Max k with non-zero mass:", k_grid[k_nonzero[-1]])
 
         p_vals.append(pv)
         pct_neg_vals.append(pct_negative(m_grid, k_grid, z_grid, eqm))

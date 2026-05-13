@@ -55,7 +55,7 @@ reg <- feols(
   data = reg_data
 )
 
-reg <- summary(reg, se = "hetero")
+reg <- summary(reg, cluster = "gvkey")
 
 # Extract coefficients and confidence intervals ----
 all_names <- names(coef(reg))

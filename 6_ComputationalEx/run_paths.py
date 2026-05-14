@@ -34,10 +34,10 @@ from ss_solver.integrate_dist import pct_negative
 
 ACTIVE_PATHS = [
     "phi_path",    # empirical phi time-series (phi_path.csv, year-keyed output)
-    # "phi_alt",     # phi grid scan [-0.5, 0.5]
-    # "alpha_a",     # alpha_a grid scan [0.2, 0.6]
-    # "beta",        # beta grid scan [0.95, 0.99]
-    # "sigma",       # sigma grid scan [1.5, 15.0]
+    "phi_alt",     # phi grid scan [-0.5, 0.5]
+    "alpha_a",     # alpha_a grid scan [0.2, 0.6]
+    "beta",        # beta grid scan [0.95, 0.99]
+    "sigma",       # sigma grid scan [1.5, 15.0]
     # "sigma_eps",   # sigma_eps grid scan [0.01, 1.0]
 ]
 
@@ -62,8 +62,8 @@ N_WORKERS = 1   # None = use all CPUs; 1 = single-threaded
 
 MAIN_DIR  = "/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings"
 QUEST_DIR = "."
-SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
-# SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data")
+# SOLVED_EQM_DIR = os.path.join(MAIN_DIR, "data", "clean")
+SOLVED_EQM_DIR = os.path.join(QUEST_DIR, "data")
 
 # =============================================================================
 # Shared setup — runs once; inherited by worker processes via fork

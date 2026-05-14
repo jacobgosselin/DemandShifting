@@ -80,35 +80,35 @@ SCANS = [
         "attr":  "phi",
         "label": r"$\phi$",
     },
-    # {
-    #     "name":  "phi_kunal",
-    #     "pkl":   "eqm_phi_Kunal_path.pkl",
-    #     "attr":  "phi",
-    #     "label": r"$\phi$ (Kunal)",
-    # },
-    # {
-    #     "name":  "sigma",
-    #     "pkl":   "eqm_sigma_path.pkl",
-    #     "attr":  "sigma",
-    #     "label": r"$\sigma$",
-    # },
-    # {
-    #     "name":  "beta",
-    #     "pkl":   "eqm_beta_path.pkl",
-    #     "attr":  "beta",
-    #     "label": r"$\beta$",
-    # },
-    # {
-    #     "name":  "alpha_a",
-    #     "pkl":   "eqm_alpha_a_path.pkl",
-    #     "attr":  "alpha_a",
-    #     "label": r"$\alpha_a$",
-    # },
+    {
+        "name":  "sigma",
+        "pkl":   "eqm_sigma_path.pkl",
+        "attr":  "sigma",
+        "label": r"$\sigma$",
+    },
+    {
+        "name":  "beta",
+        "pkl":   "eqm_beta_path.pkl",
+        "attr":  "beta",
+        "label": r"$\beta$",
+    },
+    {
+        "name":  "alpha_a",
+        "pkl":   "eqm_alpha_a_path.pkl",
+        "attr":  "alpha_a",
+        "label": r"$\alpha_a$",
+    },
     # {
     #     "name":  "sigma_eps",
     #     "pkl":   "eqm_sigma_eps_path.pkl",
     #     "attr":  None,   # not stored in EqmParams; use dict key
     #     "label": r"$\sigma_\varepsilon$",
+    # },
+        # {
+    #     "name":  "phi_kunal",
+    #     "pkl":   "eqm_phi_Kunal_path.pkl",
+    #     "attr":  "phi",
+    #     "label": r"$\phi$ (Kunal)",
     # },
 ]
 

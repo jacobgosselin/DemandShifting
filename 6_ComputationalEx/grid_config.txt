@@ -1,4 +1,4 @@
 choice_low = 1e-3
 choice_high = 3
-n_choice_grid = 125
+n_choice_grid = 150
 n_prod_grid = 10

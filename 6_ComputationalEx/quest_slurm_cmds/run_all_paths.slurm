@@ -26,9 +26,4 @@ mkdir -p solved_eqm
 cd $SLURM_SUBMIT_DIR
 
 
-/home/jtg3519/.conda/envs/demandshifting/bin/python3 -u ../run_phi_alt_path.py
-/home/jtg3519/.conda/envs/demandshifting/bin/python3 -u ../run_sigma_path.py
-/home/jtg3519/.conda/envs/demandshifting/bin/python3 -u ../run_beta_path.py
-# /home/jtg3519/.conda/envs/demandshifting/bin/python3 -u ../run_phi_path.py
-# /home/jtg3519/.conda/envs/demandshifting/bin/python3 -u ../run_sigma_eps_path.py
-
+/home/jtg3519/.conda/envs/demandshifting/bin/python3 -u ../run_paths.py

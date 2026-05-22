@@ -1,17 +1,27 @@
 setwd("/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings")
+# clear libraries
+rm(list = ls())
 # load libraries
 library(fixest)
 library(tidyr)
 library(dplyr)
 library(stringr)
-library(DescTools)
+# library(DescTools)
 library(readr)
 library(readxl)
 library(lubridate)
 
 # Load data ---------------------------------------------------------------
-
+load("data/intermediate/compustat_preMU.RData")
 compustat_postMU <- read.csv("data/intermediate/compustat_postMU.csv")
+# just need mark-ups 
+compustat_postMU <- compustat_postMU %>% select(firmid, date, mu_v) 
+compustat_preMU <- compustat_preMU %>% 
+  mutate(date = as.integer(fyear),
+         firmid = as.integer(gvkey))
+compustat <- merge(compustat_preMU, compustat_postMU, by = c("firmid", "date"), all.x = TRUE)
+compustat <- compustat %>% 
+  mutate(sector = as.integer(substr(naics, 1, 2)))
 
 ritter_data <- read_excel("data/raw/IPO-age.xlsx") %>%
   mutate(
@@ -22,16 +32,16 @@ ritter_data <- read_excel("data/raw/IPO-age.xlsx") %>%
   select(permno, founding) %>%
   filter(!is.na(founding)) %>%
   group_by(permno) %>%
-  filter(n() == 1)
+  filter(n() == 1) 
 
 cust_capital <- read.csv("data/raw/misc/cust_capital_he_NEW.csv") %>%
-  rename(naics_3digit = NAICS,
+  dplyr::rename(naics_3digit = NAICS,
          cust_capital = ISM.Rev..median.) %>%
   select(naics_3digit, cust_capital)
 
 # Step 0: Merge Compustat with Ritter Founding Data -----------------------
 
-permno_IPO <- compustat_postMU %>%
+permno_IPO <- compustat %>%
   mutate(
     ipo_year = year(as.Date(ipodate))
   ) %>%
@@ -42,32 +52,76 @@ permno_IPO <- compustat_postMU %>%
 
 gvkey_founding <- merge(permno_IPO, ritter_data, by = "permno")
 
-analysis_data <- merge(compustat_postMU, gvkey_founding %>% select(gvkey, founding), by = "gvkey", all.x = TRUE)
+analysis_data <- merge(compustat, gvkey_founding %>% select(gvkey, founding), by = "gvkey", all.x = TRUE)
 
-# Step 1: Construct m_inv, sga spending normalized by industry-year total -
+# Step 1: Construct analysis data -----------------------
+# (don't filter on dates, yet, since we need the full panel for the m_stock calculation)
 
 analysis_data <- analysis_data %>%
-  filter(!is.na(sga_PandT) & !is.na(naics)) %>%
   mutate(
     naics_3digit = as.numeric(str_sub(naics, 1, 3)),
     naics_2digit = as.numeric(str_sub(naics, 1, 2)),
-    sga = sga_PandT
+    sga = sga_PandT, 
+    # some flags to check robustness
+    missing_sga_flag = is.na(sga),
+    missing_capx_flag = is.na(capx),
+    ppegt_flag = ppegt < 5e6, # Peters + Taylor drop obs with ppegt < 5e6, 
+    biotech_flag = substr(naics, 1, 4) == "3254", # biotech industry flag
+    # relevant variables
+    sga = ifelse(missing_sga_flag, 0, sga), # follow Peters Taylor, set missing sga to 0
+    capx = ifelse(missing_capx_flag, 0, capx), # follow Peters Taylor, set missing capx to 0
+    neg_ebitda = as.numeric(ebitda < 0),
+    neg_pi = as.numeric(pi < 0),
+    neg_ni = as.numeric(ni < 0),
+    profits = sale - cogs - sga - capx - xrd - rdip,
+    neg_profits = as.numeric(profits < 0),
+    rd  = xrd + rdip,
+    rd_sale = rd / sale,
+    sga_sale = sga / sale,
+    cogs_sale = cogs / sale,
+    capx_sale = capx / sale,
+    mu = mu_v, 
+    s_g = sale / cogs
   ) %>%
+  # arrange(gvkey, date) %>%
   group_by(gvkey) %>%
   mutate(
-    has_IPO = ifelse(any(!is.na(ipodate)), 1, 0),
-    ipo_first = first(ipodate),
     ipo_year = year(as.Date(ipodate)),
-    n_permno = n_distinct(permno),
-    obs_pre_founding = first(date) < founding
+    has_IPO = ifelse(any(!is.na(ipo_year)), 1, 0),
+    ipo_first = first(ipo_year[!is.na(ipo_year)])
   ) %>%
-  group_by(naics_2digit, date) %>%
   mutate(
-    m_inv = sga / sum(sga, na.rm = TRUE)
-    # m_inv = sga
+    # obs_pre_IPO = date < ipo_first
   ) %>%
+  ungroup() %>%
   group_by(gvkey) %>%
-  arrange(gvkey, date)
+  arrange(gvkey, date) %>%
+  mutate(
+    # generate spells and cap since only have data going back to 1961
+    neg_spell = sequence(rle(neg_ebitda)$lengths) * neg_ebitda,
+    neg_spell_cap_flag = ifelse(neg_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
+    neg_spell = ifelse(neg_spell > 19, 19, neg_spell), 
+    neg_pi_spell = sequence(rle(neg_pi)$lengths) * neg_pi,
+    neg_pi_spell_cap_flag = ifelse(neg_pi_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
+    neg_pi_spell = ifelse(neg_pi_spell > 19, 19, neg_pi_spell),
+    neg_ni_spell = sequence(rle(neg_ni)$lengths) * neg_ni,
+    neg_ni_spell_cap_flag = ifelse(neg_ni_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
+    neg_ni_spell = ifelse(neg_ni_spell > 19, 19, neg_ni_spell),
+    neg_profits_spell = sequence(rle(neg_profits)$lengths) * neg_profits,
+    neg_profits_spell_cap_flag = ifelse(neg_profits_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
+    neg_profits_spell = ifelse(neg_profits_spell > 19, 19, neg_profits_spell)
+  ) %>%
+  ungroup() %>%
+  left_join(cust_capital, by = "naics_3digit") %>% 
+  # filter non-missing sales, ebitda, cogs + positive sales + non-negative sga
+  filter(!is.na(sale) & !is.na(ebitda) & !is.na(cogs) & sale > 0 & sga >= 0) %>% 
+  # filter non-utility and non-finance industries
+  filter(naics_2digit != 52 & naics_2digit != 22 & naics_2digit < 90)
+
+# add m_inv variable 
+analysis_data <- analysis_data %>%
+  group_by(sector, date) %>% 
+  mutate(m_inv = sga / sum(sga, na.rm = TRUE))
 
 # Step 2: Pre-IPO growth rate of m_inv ------------------------------------
 
@@ -110,11 +164,11 @@ analysis_data <- analysis_data %>%
   arrange(gvkey, date) %>%
   mutate(
     first_date = first(date),
-    founding_imputed = ifelse(is.na(founding), first_date - avg_dist_firstobs, founding),
+    founding_imputed = ifelse(is.na(founding), first_date - med_dist_firstobs, founding),
     age = date - founding_imputed,
     m_stock = {
       delta <- delta_m
-      g     <- avg_preIPO_growth
+      g     <- med_preIPO_growth
       r     <- (1 - delta) / (1 + g)
       init_val <- first(m_inv) * (1 - r^first(age)) / (1 - r)
       Reduce(function(prev, curr) (1 - delta) * prev + curr,
@@ -123,72 +177,12 @@ analysis_data <- analysis_data %>%
              accumulate = TRUE)
     }
   ) 
-  # %>%
-  # ungroup() %>%
-  # group_by(naics_2digit, date) %>%
-  # mutate( 
-  #   m_stock = m_stock / sum(m_stock, na.rm = TRUE) # normalize to sum to 1 within industry-year
-  # )
 
 
-# Step 4: Apply analysis filters ------------------------------------------
+# Step 4: Apply date filters ------------------------------------------
 
 analysis_data <- analysis_data %>%
-  filter(!is.na(ebitda) & !is.na(sale) & !is.na(cogs) & !is.na(capx)) %>%
-  filter(!(naics_2digit %in% c(22, 52, 99)))
-
-# Step 5: Add empirical variables -----------------------------------------
-
-analysis_data <- analysis_data %>%
-  mutate(
-    neg_ebitda    = as.numeric(ebitda < 0),
-    neg_pi        = as.numeric(pi < 0),
-    neg_ni        = as.numeric(ni < 0),
-    profits       = sale - cogs - xsga - capx,
-    neg_profits   = as.numeric(profits < 0),
-    rd            = xrd + rdip,
-    rd_sale_raw   = rd / sale,
-    sga_sale_raw  = sga / sale,
-    cogs_sale_raw = cogs / sale,
-    capx_sale_raw = capx / sale,
-    mu            = mu_v
-  ) %>%
-  group_by(date) %>%
-  mutate(
-    ebitda    = Winsorize(ebitda,          na.rm = TRUE, probs = c(0, 1)),
-    ebitda_sale = Winsorize(ebitda / sale, na.rm = TRUE, probs = c(0, 1)),
-    rd_sale   = Winsorize(rd_sale_raw,     na.rm = TRUE, probs = c(0, 1)),
-    sga_sale  = Winsorize(sga_sale_raw,    na.rm = TRUE, probs = c(0, 1)),
-    cogs_sale = Winsorize(cogs_sale_raw,   na.rm = TRUE, probs = c(0, 1)),
-    capx_sale = Winsorize(capx_sale_raw,   na.rm = TRUE, probs = c(0, 1))
-  ) %>%
-  ungroup() %>%
-  group_by(naics_2digit, date) %>%
-  mutate(
-    sales_share = sale / sum(sale, na.rm = TRUE)
-  ) %>%
-  ungroup() %>%
-  group_by(gvkey) %>%
-  arrange(gvkey, date) %>%
-  mutate(
-    # generate spells and cap since only have data going back to 1961
-    neg_spell = sequence(rle(neg_ebitda)$lengths) * neg_ebitda,
-    neg_spell_cap_flag = ifelse(neg_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
-    neg_spell = ifelse(neg_spell > 19, 19, neg_spell), 
-    neg_pi_spell = sequence(rle(neg_pi)$lengths) * neg_pi,
-    neg_pi_spell_cap_flag = ifelse(neg_pi_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
-    neg_pi_spell = ifelse(neg_pi_spell > 19, 19, neg_pi_spell),
-    neg_ni_spell = sequence(rle(neg_ni)$lengths) * neg_ni,
-    neg_ni_spell_cap_flag = ifelse(neg_ni_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
-    neg_ni_spell = ifelse(neg_ni_spell > 19, 19, neg_ni_spell),
-    neg_profits_spell = sequence(rle(neg_profits)$lengths) * neg_profits,
-    neg_profits_spell_cap_flag = ifelse(neg_profits_spell > 19, 1, 0), # cap at 20 years, but keep track of whether cap was hit
-    neg_profits_spell = ifelse(neg_profits_spell > 19, 19, neg_profits_spell)
-  ) %>%
-  ungroup() %>%
-  left_join(cust_capital, by = "naics_3digit") %>%
-  # Don't filter date until AFTER computing m_stock and neg_spell, which rely on full firm history
-  filter(date >= 1980 & date < 2020)
+  filter(date >= 1980 & date < 2020) 
 
 # Save --------------------------------------------------------------------
 

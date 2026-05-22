@@ -15,6 +15,9 @@ library(fixest)
 # load data ----------------------------------------------------
 
 load("data/clean/analysis_data.RData")
+# filter to non-missing sga and non-biotech firms 
+analysis_data <- analysis_data %>% filter(biotech_flag == 0)
+
 palette_3 <- viridis::inferno(3, begin = 0.0, end = 0.9)
 theme_common <- theme_minimal(base_size = 12) +
   theme(

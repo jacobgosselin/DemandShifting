@@ -45,7 +45,7 @@ palette_3 = [cm.inferno(x) for x in np.linspace(0.0, 0.9, 3)]
 from ss_solver.integrate_dist import (
     pct_negative, est_dist, est_sd, median_adv_ratio,
     median_inv_ratio, median_cogs_ratio, avg_neg_spell_cohort,
-    top_pct_sales_share
+    top_pct_sales_share, sales_size_brackets
 )
 from ss_solver.prod_fncts import *
 from ss_solver.solve_eqm import EqmParams, solve_ss_equilibrium_least_squares
@@ -76,25 +76,25 @@ FIGURES_DIR = os.environ.get("DEMANDSHIFT_FIGURES_DIR", _default_figures)
 SCANS = [
     {
         "name":  "phi",
-        "pkl":   "eqm_phi_alt_path.pkl",
+        "pkl":   "eqm_phi_alt.pkl",
         "attr":  "phi",
         "label": r"$\phi$",
     },
     {
         "name":  "sigma",
-        "pkl":   "eqm_sigma_path.pkl",
+        "pkl":   "eqm_sigma.pkl",
         "attr":  "sigma",
         "label": r"$\sigma$",
     },
     {
         "name":  "beta",
-        "pkl":   "eqm_beta_path.pkl",
+        "pkl":   "eqm_beta.pkl",
         "attr":  "beta",
         "label": r"$\beta$",
     },
     {
         "name":  "alpha_a",
-        "pkl":   "eqm_alpha_a_path.pkl",
+        "pkl":   "eqm_alpha_a.pkl",
         "attr":  "alpha_a",
         "label": r"$\alpha_a$",
     },
@@ -171,6 +171,7 @@ for i, scan in enumerate(SCANS):
     med_adv_all, med_inv_all, med_cogs_all = [], [], []
     avg_neg_vals = []
     top1pct_vals = []
+    bracket_small, bracket_mid, bracket_large = [], [], []
 
     for pv in param_vals:
         eqm    = eqms[pv]
@@ -193,6 +194,8 @@ for i, scan in enumerate(SCANS):
         p_vals.append(pv)
         pct_neg_vals.append(pct_negative(m_grid, k_grid, z_grid, eqm))
         top1pct_vals.append(top_pct_sales_share(m_grid, k_grid, z_grid, eqm, threshold=0.90))
+        sm, md, lg = sales_size_brackets(m_grid, k_grid, z_grid, eqm, lo=0.5, hi=1.5)
+        bracket_small.append(sm); bracket_mid.append(md); bracket_large.append(lg)
         _, earnings_cdf = est_dist(m_grid, k_grid, z_grid, eqm, "earnings")
         _, sales_cdf    = est_dist(m_grid, k_grid, z_grid, eqm, "revenue")
         sd_earnings_raw.append(est_sd(earnings_cdf))
@@ -305,6 +308,27 @@ for i, scan in enumerate(SCANS):
     fig2.savefig(out_path_2x2, dpi=150, bbox_inches="tight")
     plt.close(fig2)
     print(f"  Saved 2x2 figure → {out_path_2x2}")
+
+    # ------------------------------------------------------------------
+    # "Death of the middle-class firm" figure
+    # ------------------------------------------------------------------
+    fig_mc, ax_mc = plt.subplots(figsize=(8, 6))
+    ax_mc.plot(param_vals, bracket_small, "o-", linewidth=3, markersize=10,
+               label=r"$< 0.5 \times$ median", color=palette_3[0])
+    ax_mc.plot(param_vals, bracket_mid,   "s-", linewidth=3, markersize=10,
+               label=r"$[0.5, 1.5] \times$ median", color=palette_3[1])
+    ax_mc.plot(param_vals, bracket_large, "^-", linewidth=3, markersize=10,
+               label=r"$> 1.5 \times$ median", color=palette_3[2])
+    ax_mc.set_xlabel(plabel)
+    ax_mc.set_ylabel("% of Firms")
+    ax_mc.set_title("Sales Brackets (Normalized by Median)")
+    ax_mc.legend(fontsize=16)
+    ax_mc.grid(True, alpha=0.3)
+    fig_mc.tight_layout()
+    out_mc = os.path.join(FIGURES_DIR, f"alt_paths_sales_brackets_{pname}.pdf")
+    fig_mc.savefig(out_mc, dpi=150, bbox_inches="tight")
+    plt.close(fig_mc)
+    print(f"  Saved sales-bracket figure → {out_mc}")
 
     _top1_data[pname] = (param_vals, top1pct_vals, plabel)
 

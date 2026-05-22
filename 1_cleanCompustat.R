@@ -187,3 +187,5 @@ compustat_procMU <- compustat_preMU %>%
   arrange(sector, firmid, date)
 
 write.csv(compustat_procMU, "data/intermediate/compustat_preMU.csv", row.names = FALSE)
+# save compustatPreMU
+save(compustat_preMU, file="data/intermediate/compustat_preMU.RData")

@@ -11,6 +11,8 @@ library(readr)
 # load data ----------------------------------------------------
 
 load("data/clean/analysis_data.RData")
+# filter to non-missing sga and non-biotech firms 
+analysis_data <- analysis_data %>% filter(biotech_flag == 0)
 
 # print number of firms and number of observations
 num_firms <- n_distinct(analysis_data$gvkey)
@@ -155,10 +157,10 @@ neg_earnings_byyear <- analysis_data %>%
     neg_pi_spell = mean(neg_pi_spell[neg_pi == 1], na.rm = TRUE),
     neg_ni_spell = mean(neg_ni_spell[neg_ni == 1], na.rm = TRUE),
     neg_profits_spell = mean(neg_profits_spell[neg_profits == 1], na.rm = TRUE),
-    neg_ebitda = mean(neg_ebitda) * 100,
+    neg_ebitda = mean(neg_ebitda, na.rm = TRUE) * 100,
     neg_pi = mean(neg_pi, na.rm = TRUE) * 100,
     neg_ni = mean(neg_ni, na.rm = TRUE) * 100,
-    neg_profits = mean(neg_profits) * 100,
+    neg_profits = mean(neg_profits, na.rm = TRUE) * 100,
     n_firms = n()
   ) 
 
@@ -1010,27 +1012,51 @@ ggplot(markup_by_year, aes(x = date, y = median_mu)) +
 
 ggsave("figures/empirical/markup_by_year.pdf", width = 8, height = 6)
 
-# APPENDIX: Scale invariant measure of distribution spread for earnings
+# APPENDIX: Scale invariant measure of distribution spread for earnings ----- 
+
+# load total receipts
+data_ma <- read_stata("data/raw/agg_raw_receipts_R5.dta")
+data_ma <- as.data.frame(data_ma)
+total_receipts <- data_ma %>% filter(thres_low == "Total")
+total_receipts <- total_receipts %>% select(year, total_receipts = breceipts)
+load("data/raw/deflator.RData")
+deflator <- deflator %>% rename(year = fyear)
+total_receipts <- merge(total_receipts, deflator, by = "year")
+total_receipts <- total_receipts %>%
+  mutate(total_receipts = total_receipts / deflator * 100,
+         total_receipts_rel_1980 = total_receipts / total_receipts[year == 1980],
+         date = year) %>%
+  select(date, total_receipts, total_receipts_rel_1980)
+
+# normalize by total receipts
+sector_norm_spread <- analysis_data %>%
+  left_join(total_receipts, by = "date") %>%
+  filter(!is.na(total_receipts)) %>%
+  mutate(sale_norm = sale/total_receipts) %>% 
+  group_by(date) %>%
+  reframe(
+    iqr_norm_sale = (quantile(sale_norm, 0.75) - quantile(sale_norm, 0.25))/median(sale_norm),
+    log_iqr_norm_sale = log(iqr_norm_sale)
+  )
 
 # Sector-normalized IQR: divide each firm by its sector-year median, then take IQR across all firms
 sector_norm_spread <- analysis_data %>%
+  group_by(sector, date) %>% 
+  mutate(
+    med_sale = median(sale), 
+    sale_norm = sale/med_sale, 
+    med_ebitda = median(ebitda), 
+    ebitda_norm = ebitda/med_ebitda
+  ) %>% 
+  filter(n() > 100) %>%
   group_by(date) %>%
   reframe(
-    iqr_norm_sale = (quantile(sale, 0.75) - quantile(sale, 0.25)) / median(sale),
-    iqr_norm_ebitda = (quantile(ebitda, 0.75) - quantile(ebitda, 0.25)) / median(ebitda),
-    # check movements on both sides
-    p50_p25_norm_ebitda = (quantile(ebitda, 0.50) - quantile(ebitda, 0.25)) / median(ebitda),
-    p75_p50_norm_ebitda = (quantile(ebitda, 0.75) - quantile(ebitda, 0.50)) / median(ebitda),
-    p50_p25_norm_sale = (quantile(sale, 0.50) - quantile(sale, 0.25)) / median(sale),
-    p75_p50_norm_sale = (quantile(sale, 0.75) - quantile(sale, 0.50)) / median(sale)
+    iqr_norm_sale = (quantile(sale_norm, 0.75) - quantile(sale_norm, 0.25)), 
+    iqr_norm_ebitda = (quantile(ebitda_norm, 0.75) - quantile(ebitda_norm, 0.25)),
   ) %>%
   mutate(
     log_iqr_norm_sales = log(iqr_norm_sale),
-    log_iqr_norm_ebitda = log(iqr_norm_ebitda),
-    log_p50_p25_norm_ebitda = log(p50_p25_norm_ebitda),
-    log_p75_p50_norm_ebitda = log(p75_p50_norm_ebitda),
-    log_p50_p25_norm_sale = log(p50_p25_norm_sale),
-    log_p75_p50_norm_sale = log(p75_p50_norm_sale)
+    log_iqr_norm_ebitda = log(iqr_norm_ebitda)
   )
 
 base_1980_spread <- sector_norm_spread %>% filter(date == 1980)
@@ -1038,18 +1064,14 @@ base_1980_spread <- sector_norm_spread %>% filter(date == 1980)
 scale_inv_iqr <- sector_norm_spread %>%
   mutate(
     log_change_iqr_norm_sales = log_iqr_norm_sales - base_1980_spread$log_iqr_norm_sales,
-    log_change_iqr_norm_ebitda = log_iqr_norm_ebitda - base_1980_spread$log_iqr_norm_ebitda, 
-    log_change_p50_p25_norm_ebitda = log_p50_p25_norm_ebitda - base_1980_spread$log_p50_p25_norm_ebitda,
-    log_change_p75_p50_norm_ebitda = log_p75_p50_norm_ebitda - base_1980_spread$log_p75_p50_norm_ebitda,
-    log_change_p50_p25_norm_sale = log_p50_p25_norm_sale - base_1980_spread$log_p50_p25_norm_sale,
-    log_change_p75_p50_norm_sale = log_p75_p50_norm_sale - base_1980_spread$log_p75_p50_norm_sale
+    log_change_iqr_norm_ebitda = log_iqr_norm_ebitda - base_1980_spread$log_iqr_norm_ebitda
   ) %>%
-  select(date, log_change_iqr_norm_sales, log_change_iqr_norm_ebitda, log_change_p50_p25_norm_ebitda, log_change_p75_p50_norm_ebitda, log_change_p50_p25_norm_sale, log_change_p75_p50_norm_sale) %>%
+  select(date, log_change_iqr_norm_sales, log_change_iqr_norm_ebitda) %>%
   pivot_longer(cols = starts_with("log_change"),
                names_to = "variable",
                values_to = "log_change")
 
-plot_main_measures <- ggplot(scale_inv_iqr %>% filter(variable == "log_change_iqr_norm_ebitda" | variable == "log_change_iqr_norm_sales"), aes(x = date, y = log_change, color = variable, group = variable)) +
+plot_main_measures <- ggplot(scale_inv_iqr, aes(x = date, y = log_change, color = variable, group = variable)) +
   geom_line(linewidth = 2) +
   geom_point(size = 3) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
@@ -1067,3 +1089,141 @@ plot_main_measures <- ggplot(scale_inv_iqr %>% filter(variable == "log_change_iq
   theme_common
 
 ggsave("figures/empirical/scale_inv_main_measures.pdf", width = 8, height = 6)
+
+# APPENDIX: neg_earnings and future sales growth --------
+analysis_data <- analysis_data %>%
+arrange(gvkey, date) %>%
+group_by(gvkey) %>%
+mutate(
+  sales_growth_1yr = log(lead(sale, n = 1)/sale),
+  sales_growth_5yr = log(lead(sale, n = 5)/sale)
+)
+library(fixest)
+reg_neg_growth <- feols(sales_growth_1yr ~ i(date, neg_spell, ref = 1980) | gvkey + sector:date + neg_ebitda:date, data = analysis_data)
+reg_neg_growth <- summary(reg_neg_growth, cluster = "gvkey")
+coef_df <- as.data.frame(coeftable(reg_neg_growth))
+coef_df$term <- rownames(coef_df)
+coef_df <- coef_df %>%
+  filter(grepl("^date::", term)) %>%
+  mutate(
+    year = as.integer(sub("^date::(\\d+):neg_spell$", "\\1", term)),
+    estimate = Estimate,
+    se = `Std. Error`,
+    ci_lo_90 = estimate - 1.645 * se,
+    ci_hi_90 = estimate + 1.645 * se
+  )
+
+ggplot(coef_df, aes(x = year, y = estimate)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_ribbon(aes(ymin = ci_lo_90, ymax = ci_hi_90), alpha = 0.2) +
+  geom_line(linewidth = 2, color = "black") +
+  geom_point(size = 3, color = "black") +
+  scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+  labs(
+    x = "Year",
+    y = "Coefficient on Negative EBITDA",
+    title = "Negative EBITDA and Future Sales Growth (Relative to 1980)"
+  ) +
+  theme_common
+
+ggsave("figures/empirical/neg_ebitda_sales_growth_coefs.pdf", width = 8, height = 6)
+
+# APPENDIX: neg_spell by sector --------
+
+# neg_spell by sector (negative earnings firms only)
+neg_spell_sector_year <- analysis_data %>%
+  mutate(naics_2digit = as.numeric(str_sub(naics_3digit, 1, 2))) %>%
+  filter(neg_ebitda == 1) %>%
+  group_by(naics_2digit, date) %>%
+  reframe(
+    avg_neg_spell = mean(neg_spell, na.rm = TRUE),
+    n_firms = n(),
+    .groups = "drop"
+  ) %>%
+  filter(n_firms >= 5)
+
+neg_spell_sector_averages <- neg_spell_sector_year %>%
+  group_by(naics_2digit) %>%
+  summarise(
+    avg_neg_spell_late  = mean(avg_neg_spell[date >= 2015], na.rm = TRUE),
+    avg_neg_spell_early = mean(avg_neg_spell[date <= 1984], na.rm = TRUE),
+    n_years             = n(),
+    .groups = "drop"
+  ) %>%
+  mutate(change_neg_spell = avg_neg_spell_late - avg_neg_spell_early) %>%
+  filter(!is.na(avg_neg_spell_late) & !is.na(avg_neg_spell_early))
+
+neg_spell_sector_long <- neg_spell_sector_averages %>%
+  select(naics_2digit, avg_neg_spell_late, change_neg_spell) %>%
+  pivot_longer(cols = c(avg_neg_spell_late, change_neg_spell),
+               names_to = "metric",
+               values_to = "value") %>%
+  mutate(metric = factor(metric, levels = c("change_neg_spell", "avg_neg_spell_late"))) %>%
+  filter(!is.na(value))
+
+ggplot(neg_spell_sector_long, aes(x = as.factor(naics_2digit), y = value, fill = metric)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+  scale_fill_manual(
+    breaks = c("avg_neg_spell_late", "change_neg_spell"),
+    values = setNames(palette_2, c("avg_neg_spell_late", "change_neg_spell")),
+    labels = c("avg_neg_spell_late" = "Avg. Neg. Spell \n (2015-2019)",
+               "change_neg_spell"   = "Change in Avg. Neg. Spell \n (1980-1984 to 2015-2019)")
+  ) +
+  labs(
+    title = "",
+    x = "Sector",
+    y = "",
+    fill = ""
+  ) +
+  theme_common
+
+ggsave("figures/empirical/neg_spell_by_sector_2digit.pdf", width = 8, height = 6)
+
+# neg_spell_profits by sector (negative profits firms only)
+neg_spell_profits_sector_year <- analysis_data %>%
+  mutate(naics_2digit = as.numeric(str_sub(naics_3digit, 1, 2))) %>%
+  filter(neg_profits == 1) %>%
+  group_by(naics_2digit, date) %>%
+  reframe(
+    avg_neg_spell = mean(neg_profits_spell, na.rm = TRUE),
+    n_firms = n(),
+    .groups = "drop"
+  ) %>%
+  filter(n_firms >= 5)
+
+neg_spell_profits_sector_averages <- neg_spell_profits_sector_year %>%
+  group_by(naics_2digit) %>%
+  summarise(
+    avg_neg_spell_late  = mean(avg_neg_spell[date >= 2015], na.rm = TRUE),
+    avg_neg_spell_early = mean(avg_neg_spell[date <= 1984], na.rm = TRUE),
+    n_years             = n(),
+    .groups = "drop"
+  ) %>%
+  mutate(change_neg_spell = avg_neg_spell_late - avg_neg_spell_early) %>%
+  filter(!is.na(avg_neg_spell_late) & !is.na(avg_neg_spell_early))
+
+neg_spell_profits_sector_long <- neg_spell_profits_sector_averages %>%
+  select(naics_2digit, avg_neg_spell_late, change_neg_spell) %>%
+  pivot_longer(cols = c(avg_neg_spell_late, change_neg_spell),
+               names_to = "metric",
+               values_to = "value") %>%
+  mutate(metric = factor(metric, levels = c("change_neg_spell", "avg_neg_spell_late"))) %>%
+  filter(!is.na(value))
+
+ggplot(neg_spell_profits_sector_long, aes(x = as.factor(naics_2digit), y = value, fill = metric)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+  scale_fill_manual(
+    breaks = c("avg_neg_spell_late", "change_neg_spell"),
+    values = setNames(palette_2, c("avg_neg_spell_late", "change_neg_spell")),
+    labels = c("avg_neg_spell_late" = "Avg. Neg. Profits Spell \n (2015-2019)",
+               "change_neg_spell"   = "Change in Avg. Neg. Profits Spell \n (1980-1984 to 2015-2019)")
+  ) +
+  labs(
+    title = "",
+    x = "Sector",
+    y = "",
+    fill = ""
+  ) +
+  theme_common
+
+ggsave("figures/empirical/neg_spell_profits_by_sector_2digit.pdf", width = 8, height = 6)

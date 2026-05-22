@@ -22,6 +22,8 @@ theme_slides <- theme_minimal(base_size = 32) +
 
 # Load analysis data (m_stock already constructed by 3a_build_analysis_data.R) ----
 load("data/clean/analysis_data.RData")
+# filter to non-missing sga and non-biotech firms 
+analysis_data <- analysis_data %>% filter(missing_sga_flag == 0 & biotech_flag == 0)
 
 # Singleton and finiteness filters for regression ----
 reg_data <- analysis_data %>%
@@ -38,8 +40,7 @@ reg_data <- analysis_data %>%
   mutate(
     log_sale    = log(sale),
     log_m_stock = log(m_stock),
-    log_k_stock = log(ppegt),
-    sector_year = paste0(sector, "_", date)
+    log_k_stock = log(ppegt)
   ) %>%
   filter(
     !is.na(log_sale)    & !is.na(log_m_stock) & !is.na(log_k_stock) &
@@ -51,7 +52,7 @@ reg_data <- analysis_data %>%
 
 # Two-way FE regression with year-interacted log(m_stock) ----
 reg <- feols(
-  log_sale ~ log_m_stock:i(date) + log_k_stock | sector:date + gvkey,
+  log_sale ~ log_m_stock:i(date) + log_k_stock | gvkey + sector:date,
   data = reg_data
 )
 

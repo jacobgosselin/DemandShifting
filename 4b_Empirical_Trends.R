@@ -11,6 +11,9 @@ library(viridis)
 
 load("data/clean/analysis_data.RData")
 
+# filter to non-missing sga and non-biotech firms 
+analysis_data <- analysis_data %>% filter(missing_sga_flag == 0 & biotech_flag == 0 & ppegt > 1e6)
+
 # Common theme and palette for all plots
 theme_common <- theme_minimal(base_size = 24) +
   theme(

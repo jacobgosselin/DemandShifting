@@ -514,6 +514,35 @@ def avg_neg_spell_cohort(eqm, z_grid, Pi, T=50):
     return float(np.sum(spell_lengths * total_spell_dist) / total_neg)
 
 
+def sales_size_brackets(m_grid, k_grid, z_grid, eqm, lo=0.5, hi=2.0):
+    """
+    Fraction of firms in three sales brackets relative to the equilibrium median.
+
+    Parameters
+    ----------
+    lo, hi : float
+        Bracket boundaries as multiples of the median.
+        small  = sales < lo  * median
+        middle = lo * median <= sales <= hi * median
+        large  = sales > hi  * median
+
+    Returns (pct_small, pct_middle, pct_large) each in percent (0-100).
+    """
+    rev_pdf, rev_cdf = est_dist(m_grid, k_grid, z_grid, eqm, 'revenue')
+    median_sales = median_from_cdf(rev_cdf)
+    total_mass = np.sum(rev_pdf[:, 1])
+    if total_mass == 0 or median_sales <= 0:
+        return np.nan, np.nan, np.nan
+    sales = rev_pdf[:, 0]
+    mass  = rev_pdf[:, 1]
+    small  = np.sum(mass[sales < lo * median_sales])
+    large  = np.sum(mass[sales > hi * median_sales])
+    middle = total_mass - small - large
+    return (100.0 * small  / total_mass,
+            100.0 * middle / total_mass,
+            100.0 * large  / total_mass)
+
+
 def agg_labor_shares(m_grid, k_grid, z_grid, eqm):
     """
     Aggregate labor allocations: (L_a, L_k, L_s).

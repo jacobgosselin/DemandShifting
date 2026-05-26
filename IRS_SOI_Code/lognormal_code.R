@@ -9,6 +9,11 @@
   setwd('/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/data/raw/misc/Ma_Replication')
   program_wd=getwd()
   print(program_wd)
+  theme_common <- theme_minimal(base_size = 18) +
+  theme(
+    text = element_text(family = "serif", size = 18),
+    legend.position = "bottom"
+  )
   
   
   inpath <-paste0(program_wd,"/output/soi/brackets/")
@@ -21,7 +26,7 @@
     sapply(pkg, require, character.only = TRUE)
   }
   packages<-c("data.table","plyr","tidyverse","janitor","haven","readxl",
-              "stringr","stringdist","kableExtra","fedmatch","nleqslv")
+              "stringr","stringdist","kableExtra","fedmatch","nleqslv", "ggplot2", "viridis")
   check.packages(packages)
   
   # ***************** 1. Functions *****************
@@ -220,9 +225,11 @@
     setkey(data,year,sector_main)
     data_unique=unique(data, by = c("year","sector_main"))[,c("year","sector_main")]
     
-    inter_output = as.data.table( matrix( NA, nrow = nrow(data_unique), ncol=7 )  )
-    names(inter_output) <- c( "year","sector","top50","top10","top1","top0_1","number_bins") 
-    
+    inter_output = as.data.table( matrix( NA, nrow = nrow(data_unique), ncol=6 )  )
+    names(inter_output) <- c( "year","sector","top50","top10","top1","top0_1")
+    inter_output[, number_bins := NA_integer_]
+
+    fits_list = list()
     num=1
     for (x in 1:nrow(data_unique)) {
         setkey(data,year,sector_main)
@@ -303,8 +310,21 @@
                                            sigma_list = as.numeric(data_sec$sigma),
                                            tail_mean_list = as.numeric(data_sec$tail_mean),
                                            total_mean = as.numeric(data_sec[[paste0(type,"_total_avg")]][1]))$top_shares
-          # store sigma as well 
-          inter_output$sigma[num] = data_sec$sigma[2] # store the sigma of the second bin, which is the first bin with a fitted log-normal distribution
+          # store piecewise fit (one row per bin) for later PDF plotting
+          n_bins = nrow(data_sec)
+          thres_low_all  = as.numeric(data_sec$thres_low)
+          thres_high_all = c(thres_low_all[-1], Inf)
+          fits_list[[length(fits_list) + 1]] = data.table(
+            year        = data_unique$year[x],
+            sector_main = data_unique$sector_main[x],
+            bin_index   = seq_len(n_bins),
+            thres_low   = thres_low_all,
+            thres_high  = thres_high_all,
+            mu          = as.numeric(data_sec$mu),
+            sigma       = as.numeric(data_sec$sigma),
+            cdf_low     = as.numeric(data_sec$cdf),
+            cdf_high    = c(as.numeric(data_sec$cdf[-1]), 1)
+          )
           num=num+1
         }else{
           inter_output$number_bins[num]=nrow(data_sec)
@@ -319,27 +339,155 @@
     inter_output$top1=as.numeric(inter_output$top1)
     inter_output$top10=as.numeric(inter_output$top10)
     inter_output$top50=as.numeric(inter_output$top50)
-    inter_output$sigma=as.numeric(inter_output$sigma)
-    
+
     inter_output<-inter_output[,"number_bins":=NULL]
-    
-    names(inter_output) <- c( "year","sector_main","tsh_assets_ln_50pct","tsh_assets_ln_10pct","tsh_assets_ln_1pct","tsh_assets_ln_0_1pct", "sigma") 
-    
-    return(inter_output)
+
+    names(inter_output) <- c( "year","sector_main","tsh_receipts_ln_50pct","tsh_receipts_ln_10pct","tsh_receipts_ln_1pct","tsh_receipts_ln_0_1pct")
+
+    fits = rbindlist(fits_list)
+
+    return(list(shares = inter_output, fits = fits))
     # write_dta(inter_output,path=paste0(outpath,name,"_lognormal.dta"))
     # print(paste0("saved data to",outpath,name,"_lognormal.dta"))
   }
 
   
   # ***************** 2. Main *****************
-  # data <- as.data.table(read_dta(paste0(inpath,"sector_brackets_assets_R5.dta"))) # load raw data
-  data <- as.data.table(read_dta('/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/data/raw/misc/Ma_Replication/programs_publish/output/soi/brackets/sector_brackets_assets_R5.dta')) # load raw data
-  result <- main_output(data_input=data,type_input="assets",sector_input="sector",name="sector_assets")
-  
-  all_trend <- result %>% filter(sector_main == "All", year >= 1980) %>% select(year, sigma) 
-  library(ggplot2) 
-  ggplot(all_trend, aes(x = year, y = sigma)) +
-    geom_line() +
-    geom_point() +
-    labs(title = "Trend of Sigma for All Sectors", x = "Year", y = "Sigma") +
-    theme_minimal()
+  data <- as.data.table(read_dta('/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/data/raw/agg_brackets_receipts_R5.dta'))
+  data <- data[year >= 1980]
+  common_brackets <- c(0, 25e3, 100e3, 500e3, 1e6, 5e6, 10e6, 50e6)
+  # assign each row to the nearest common bracket at or below its thres_low,
+  # then sum number and breceipts within that group so no firms/receipts are lost
+  data[, bracket := common_brackets[findInterval(thres_low, common_brackets)]]
+  data <- data[, .(number = sum(number), breceipts = sum(breceipts),
+                   number_total = number_total[1], breceipts_total = breceipts_total[1]),
+               by = .(year, bracket)]
+  setnames(data, "bracket", "thres_low")
+  data[, sector_main := "All"]
+  result <- main_output(data_input=data,type_input="breceipts",sector_input="sector",name="agg_receipts")
+  shares <- result$shares
+  fits   <- result$fits
+
+  # ---- piecewise CDF helper ----
+  # Returns a data.frame of (x, cdf) for the piecewise lognormal defined by
+  # a set of bins, each with its own (mu, sigma) and empirical weight (cdf_high - cdf_low).
+  piecewise_lognormal_cdf = function(bins, n_grid = 2000) {
+    bins = bins[!is.na(bins$mu) & !is.na(bins$sigma) & bins$sigma > 0, ]
+    if (nrow(bins) == 0) return(NULL)
+    x_min = min(ifelse(bins$thres_low > 0, bins$thres_low, 0.01), na.rm = TRUE)
+    x_max = exp(max(bins$mu + 4 * bins$sigma, na.rm = TRUE))
+    x_grid = exp(seq(log(x_min), log(x_max), length.out = n_grid))
+    cdf = numeric(n_grid)
+    for (b in seq_len(nrow(bins))) {
+      w     = bins$cdf_high[b] - bins$cdf_low[b]
+      mu_b  = bins$mu[b]
+      sg_b  = bins$sigma[b]
+      tl    = max(bins$thres_low[b], 0.01)
+      th    = bins$thres_high[b]
+      denom = plnorm(th, mu_b, sg_b) - plnorm(tl, mu_b, sg_b)
+      if (denom <= 0) next
+      in_bin = x_grid >= tl & x_grid < th
+      cdf[in_bin] = cdf[in_bin] + w * (plnorm(x_grid[in_bin], mu_b, sg_b) - plnorm(tl, mu_b, sg_b)) / denom
+      cdf[x_grid >= th] = cdf[x_grid >= th] + w
+    }
+    data.frame(x = x_grid, cdf = cdf)
+  }
+
+  # ---- output directory ----
+  fig_base = '/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/figures/empirical'
+  out_dir  = file.path(fig_base, "log_normal_receipts")
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+  # ---- per-year plots ----
+  library(ggplot2)
+  library(patchwork)
+  all_fits = fits[fits$sector_main == "All" & fits$year >= 1980, ]
+  years    = sort(unique(all_fits$year))
+
+  for (yr in years) {
+    bins = all_fits[all_fits$year == yr, ]
+    cdf_data = piecewise_lognormal_cdf(bins)
+    if (is.null(cdf_data)) next
+
+    thresh_lines = bins$thres_low[bins$thres_low > 0]
+
+    p = ggplot(cdf_data, aes(x = x, y = cdf)) +
+      geom_line() +
+      geom_vline(xintercept = thresh_lines, linetype = "dashed", color = "grey60", linewidth = 0.4) +
+      scale_x_log10(labels = scales::comma) +
+      scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+      labs(title = paste("Piecewise Log-Normal CDF —", yr),
+           x = "Receipts (log scale)", y = "Cumulative share of firms") +
+      theme_minimal()
+
+    ggsave(file.path(out_dir, paste0("lognormal_all_", yr, ".pdf")), p, width = 7, height = 4)
+  }
+
+  # ---- 1980 vs 2018 overlay ----
+  overlay_years = c(1980, 2018)
+  overlay_data  = do.call(rbind, lapply(overlay_years, function(yr) {
+    bins     = all_fits[all_fits$year == yr, ]
+    cdf_data = piecewise_lognormal_cdf(bins)
+    if (is.null(cdf_data)) return(NULL)
+    cdf_data$year = as.character(yr)
+    cdf_data
+  }))
+
+  if (!is.null(overlay_data)) {
+    palette_2 <- viridis::inferno(2, begin = 0.0, end = 0.9)
+
+    p_rest = ggplot(overlay_data, aes(x = x, y = cdf, color = year, linetype = year)) +
+      geom_line(size=1) +
+      scale_x_log10(labels = scales::scientific, limits = c(1, 1e7)) +
+      scale_y_continuous(limits = c(0, 0.99), labels = scales::percent) +
+      scale_color_manual(values = c("1980" = palette_2[1], "2018" = palette_2[2])) +
+      scale_linetype_manual(values = c("1980" = "solid", "2018" = "solid")) +
+      labs(title = "Rest of Distribution",
+           x = "", y = "",
+           color = "", linetype = "") +
+      theme_minimal() +
+      theme_common
+
+    p_right_tail = ggplot(overlay_data, aes(x = x, y = cdf, color = year, linetype = year)) +
+        geom_line(size=1) +
+        scale_x_log10(labels = scales::scientific, limits = c(1e7, 1e10)) +
+        scale_y_continuous(limits = c(0.99, 1), labels = scales::percent) +
+        scale_color_manual(values = c("1980" = palette_2[1], "2018" = palette_2[2])) +
+        scale_linetype_manual(values = c("1980" = "solid", "2018" = "solid")) +
+        labs(title = "Right Tail (Top 1%)",
+             x = "", y = "",
+             color = "", linetype = "") +
+        theme_minimal() +
+        theme_common 
+
+    library(ggpubr) 
+    p_overlay = ggarrange(p_right_tail, p_rest, ncol = 2, nrow = 1, common.legend = TRUE, legend = "bottom")
+    ggsave(file.path(out_dir, "lognormal_all_1980_vs_2018.pdf"), p_overlay, width = 16, height = 9)
+
+    p_rest = ggplot(overlay_data, aes(x = x, y = cdf, color = year, linetype = year)) +
+      geom_line(size=1.5) +
+      scale_x_log10(labels = scales::scientific, limits = c(1, 1e7)) +
+      scale_y_continuous(limits = c(0, 0.99), labels = scales::percent) +
+      scale_color_manual(values = c("1980" = palette_2[1], "2018" = palette_2[2])) +
+      scale_linetype_manual(values = c("1980" = "solid", "2018" = "solid")) +
+      labs(title = "Rest of Distribution",
+           x = "", y = "",
+           color = "", linetype = "") +
+      theme_minimal() +
+      theme_common
+
+    p_right_tail = ggplot(overlay_data, aes(x = x, y = cdf, color = year, linetype = year)) +
+        geom_line(size=1.5) +
+        scale_x_log10(labels = scales::scientific, limits = c(1e7, 1e10)) +
+        scale_y_continuous(limits = c(0.99, 1), labels = scales::percent, breaks = seq(0.99, 1, 0.01)) +
+        scale_color_manual(values = c("1980" = palette_2[1], "2018" = palette_2[2])) +
+        scale_linetype_manual(values = c("1980" = "solid", "2018" = "solid")) +
+        labs(title = "Right Tail (Top 1%)",
+             x = "", y = "",
+             color = "", linetype = "") +
+        theme_minimal() +
+        theme_common 
+
+    p_overlay_slides = ggarrange(p_right_tail + theme(text = element_text(size = 24)), p_rest + theme(text =element_text(size = 24)), ncol = 1, nrow = 2, common.legend = TRUE, legend = "bottom")
+    ggsave(file.path(out_dir, "lognormal_all_1980_vs_2018_slides.pdf"), p_overlay_slides, width = 10, height = 10)
+  }

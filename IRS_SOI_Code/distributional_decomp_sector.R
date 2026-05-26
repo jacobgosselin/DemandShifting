@@ -5,9 +5,9 @@ library(tidyverse)
 library(ggplot2)
 library(viridis)
 
-theme_common <- theme_minimal(base_size = 18) +
+theme_common <- theme_minimal(base_size = 24) +
   theme(
-    text = element_text(family = "serif", size = 18),
+    text = element_text(family = "serif", size = 24),
     legend.position = "bottom"
   )
 
@@ -57,7 +57,7 @@ SECTORS <- sort(unique(d_agg$sector_main))
 pA <- ggplot(d_agg, aes(x = year, y = pct_returns, colour = bracket)) +
   geom_line(linewidth = 0.8) +
   geom_point(size = 1.5) +
-  scale_colour_manual(values = viridis(8, begin = 0.1, end = 0.9)) +
+  scale_colour_manual(values = viridis(8, begin = 0, end = 1), name = NULL) +
   facet_wrap(~ sector_main, scales = "free_y") +
   labs(
     title = "",

@@ -73,63 +73,6 @@ decompose_within_between <- function(df, group_var, value_var, base_year = 1980)
 }
 
 # -----------------------------------------------------------------------
-# Helper: build a single two-panel decomposition figure
-#
-# sector_decomp / age_decomp : output of decompose_within_between()
-# y_label                    : y-axis label string
-# within_sector_label        : legend label for within-sector component
-# between_sector_label       : legend label for between-sector component
-# within_age_label           : legend label for within-age component
-# between_age_label          : legend label for between-age component
-# -----------------------------------------------------------------------
-
-make_decomp_figure <- function(sector_decomp, age_decomp,
-                               y_label,
-                               within_sector_label  = "Within Sector",
-                               between_sector_label = "Between Sector",
-                               within_age_label     = "Within Age",
-                               between_age_label    = "Between Age") {
-
-  # sector panel
-  sector_long <- sector_decomp %>%
-    pivot_longer(cols      = c(within_component, between_component),
-                 names_to  = "component",
-                 values_to = "value") %>%
-    mutate(component = factor(component,
-                              levels = c("within_component", "between_component"),
-                              labels = c(within_sector_label, between_sector_label)))
-
-  p_sector <- ggplot(sector_long, aes(x = date, y = value, color = component)) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-    geom_line(linewidth = 2) +
-    geom_point(size = 3) +
-    scale_color_manual(values = setNames(palette_2,
-                                         c(within_sector_label, between_sector_label))) +
-    labs(x = "Year", y = y_label, color = "", title = "Sector Decomposition") +
-    theme_common
-
-  # age panel
-  age_long <- age_decomp %>%
-    pivot_longer(cols      = c(within_component, between_component),
-                 names_to  = "component",
-                 values_to = "value") %>%
-    mutate(component = factor(component,
-                              levels = c("within_component", "between_component"),
-                              labels = c(within_age_label, between_age_label)))
-
-  p_age <- ggplot(age_long, aes(x = date, y = value, color = component)) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-    geom_line(linewidth = 2) +
-    geom_point(size = 3) +
-    scale_color_manual(values = setNames(palette_2,
-                                         c(within_age_label, between_age_label))) +
-    labs(x = "Year", y = y_label, color = "", title = "Age Decomposition") +
-    theme_common
-
-  ggarrange(p_sector, p_age, ncol = 2, nrow = 1)
-}
-
-# -----------------------------------------------------------------------
 # Figure 1: neg_ebitda (share of firms with EBITDA < 0)
 #   Outcome  = neg_ebitda (0/1); mean = share
 #   Universe = full sample
@@ -141,12 +84,42 @@ decomp_negebitda_sector <- decompose_within_between(
 decomp_negebitda_age    <- decompose_within_between(
   analysis_data, age, neg_ebitda)
 
-fig1 <- make_decomp_figure(
-  decomp_negebitda_sector, decomp_negebitda_age,
-  y_label = ""
-)
+sector_long <- decomp_negebitda_sector %>%
+  pivot_longer(cols      = c(within_component, between_component),
+               names_to  = "component",
+               values_to = "value") %>%
+  mutate(component = factor(component,
+                            levels = c("within_component", "between_component"),
+                            labels = c("Within Sector", "Between Sector")))
 
+p_sector <- ggplot(sector_long, aes(x = date, y = value, color = component)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = setNames(palette_2, c("Within Sector", "Between Sector"))) +
+  labs(x = "Year", y = "", color = "", title = "Sector Decomposition") +
+  theme_common
+
+age_long <- decomp_negebitda_age %>%
+  pivot_longer(cols      = c(within_component, between_component),
+               names_to  = "component",
+               values_to = "value") %>%
+  mutate(component = factor(component,
+                            levels = c("within_component", "between_component"),
+                            labels = c("Within Age", "Between Age")))
+
+p_age <- ggplot(age_long, aes(x = date, y = value, color = component)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = setNames(palette_2, c("Within Age", "Between Age"))) +
+  labs(x = "Year", y = "", color = "", title = "Age Decomposition") +
+  theme_common
+
+fig1 <- ggarrange(p_sector, p_age, ncol = 2, nrow = 1)
 ggsave("figures/empirical/decomp_neg_ebitda.pdf", fig1, width = 16, height = 9)
+fig1_slides <- ggarrange(p_sector, p_age, ncol = 1, nrow = 2)
+ggsave("figures/empirical/decomp_neg_ebitda_slides.pdf", fig1_slides, width = 10, height = 10)
 
 # -----------------------------------------------------------------------
 # Figure 2: neg_profits (share of firms with profits < 0)
@@ -160,12 +133,42 @@ decomp_negprofits_sector <- decompose_within_between(
 decomp_negprofits_age    <- decompose_within_between(
   analysis_data, age, neg_profits)
 
-fig2 <- make_decomp_figure(
-  decomp_negprofits_sector, decomp_negprofits_age,
-  y_label = ""
-)
+sector_long <- decomp_negprofits_sector %>%
+  pivot_longer(cols      = c(within_component, between_component),
+               names_to  = "component",
+               values_to = "value") %>%
+  mutate(component = factor(component,
+                            levels = c("within_component", "between_component"),
+                            labels = c("Within Sector", "Between Sector")))
 
+p_sector <- ggplot(sector_long, aes(x = date, y = value, color = component)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = setNames(palette_2, c("Within Sector", "Between Sector"))) +
+  labs(x = "Year", y = "", color = "", title = "Sector Decomposition") +
+  theme_common
+
+age_long <- decomp_negprofits_age %>%
+  pivot_longer(cols      = c(within_component, between_component),
+               names_to  = "component",
+               values_to = "value") %>%
+  mutate(component = factor(component,
+                            levels = c("within_component", "between_component"),
+                            labels = c("Within Age", "Between Age")))
+
+p_age <- ggplot(age_long, aes(x = date, y = value, color = component)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = setNames(palette_2, c("Within Age", "Between Age"))) +
+  labs(x = "Year", y = "", color = "", title = "Age Decomposition") +
+  theme_common
+
+fig2 <- ggarrange(p_sector, p_age, ncol = 2, nrow = 1)
 ggsave("figures/empirical/decomp_neg_profits.pdf", fig2, width = 16, height = 9)
+fig2_slides <- ggarrange(p_sector, p_age, ncol = 1, nrow = 2)
+ggsave("figures/empirical/decomp_neg_profits_slides.pdf", fig2_slides, width = 10, height = 10)
 
 # -----------------------------------------------------------------------
 # Figure 3: neg_spell (average spell length among neg_ebitda == 1 firms)
@@ -181,12 +184,42 @@ decomp_negspell_sector <- decompose_within_between(
 decomp_negspell_age    <- decompose_within_between(
   neg_ebitda_data, age, neg_spell)
 
-fig3 <- make_decomp_figure(
-  decomp_negspell_sector, decomp_negspell_age,
-  y_label = ""
-)
+sector_long <- decomp_negspell_sector %>%
+  pivot_longer(cols      = c(within_component, between_component),
+               names_to  = "component",
+               values_to = "value") %>%
+  mutate(component = factor(component,
+                            levels = c("within_component", "between_component"),
+                            labels = c("Within Sector", "Between Sector")))
 
+p_sector <- ggplot(sector_long, aes(x = date, y = value, color = component)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = setNames(palette_2, c("Within Sector", "Between Sector"))) +
+  labs(x = "Year", y = "", color = "", title = "Sector Decomposition") +
+  theme_common
+
+age_long <- decomp_negspell_age %>%
+  pivot_longer(cols      = c(within_component, between_component),
+               names_to  = "component",
+               values_to = "value") %>%
+  mutate(component = factor(component,
+                            levels = c("within_component", "between_component"),
+                            labels = c("Within Age", "Between Age")))
+
+p_age <- ggplot(age_long, aes(x = date, y = value, color = component)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = setNames(palette_2, c("Within Age", "Between Age"))) +
+  labs(x = "Year", y = "", color = "", title = "Age Decomposition") +
+  theme_common
+
+fig3 <- ggarrange(p_sector, p_age, ncol = 2, nrow = 1)
 ggsave("figures/empirical/decomp_neg_spell.pdf", fig3, width = 16, height = 9)
+fig3_slides <- ggarrange(p_sector, p_age, ncol = 1, nrow = 2)
+ggsave("figures/empirical/decomp_neg_spell_slides.pdf", fig3_slides, width = 10, height = 10)
 
 # -----------------------------------------------------------------------
 # Figure 4: neg_profits_spell (average spell length among neg_profits == 1 firms)
@@ -202,9 +235,39 @@ decomp_negprofitsspell_sector <- decompose_within_between(
 decomp_negprofitsspell_age    <- decompose_within_between(
   neg_profits_data, age, neg_profits_spell)
 
-fig4 <- make_decomp_figure(
-  decomp_negprofitsspell_sector, decomp_negprofitsspell_age,
-  y_label = ""
-)
+sector_long <- decomp_negprofitsspell_sector %>%
+  pivot_longer(cols      = c(within_component, between_component),
+               names_to  = "component",
+               values_to = "value") %>%
+  mutate(component = factor(component,
+                            levels = c("within_component", "between_component"),
+                            labels = c("Within Sector", "Between Sector")))
 
-ggsave("figures/empirical/decomp_neg_profits_spell.pdf", fig4, width = 16, height = 9)
+p_sector <- ggplot(sector_long, aes(x = date, y = value, color = component)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = setNames(palette_2, c("Within Sector", "Between Sector"))) +
+  labs(x = "Year", y = "", color = "", title = "Sector Decomposition") +
+  theme_common
+
+age_long <- decomp_negprofitsspell_age %>%
+  pivot_longer(cols      = c(within_component, between_component),
+               names_to  = "component",
+               values_to = "value") %>%
+  mutate(component = factor(component,
+                            levels = c("within_component", "between_component"),
+                            labels = c("Within Age", "Between Age")))
+
+p_age <- ggplot(age_long, aes(x = date, y = value, color = component)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = setNames(palette_2, c("Within Age", "Between Age"))) +
+  labs(x = "Year", y = "", color = "", title = "Age Decomposition") +
+  theme_common
+
+fig <- ggarrange(p_sector, p_age, ncol = 2, nrow = 1)
+ggsave("figures/empirical/decomp_neg_profits_spell.pdf", fig, width = 16, height = 9)
+fig <- ggarrange(p_sector, p_age, ncol = 1, nrow = 2)
+ggsave("figures/empirical/decomp_neg_profits_spell_slides.pdf", fig, width = 10, height = 10)

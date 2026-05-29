@@ -226,7 +226,7 @@
     data_unique=unique(data, by = c("year","sector_main"))[,c("year","sector_main")]
     
     inter_output = as.data.table( matrix( NA, nrow = nrow(data_unique), ncol=6 )  )
-    names(inter_output) <- c( "year","sector","top50","top10","top1","top0_1")
+    names(inter_output) <- c( "year","sector","top10","top5","top1","top0_1")
     inter_output[, number_bins := NA_integer_]
 
     fits_list = list()
@@ -289,27 +289,16 @@
           data_sec$lower_bound=0
           data_sec$upper_bound=log(max(thres_low))+4
 
-          # top x% share
-          inter_output$top50[num]=top_1_pct(0.5, thresh_low_list = as.numeric(data_sec$thres_low),
-                                           mu_list = as.numeric(data_sec$mu),
-                                           sigma_list = as.numeric(data_sec$sigma),
-                                           tail_mean_list = as.numeric(data_sec$tail_mean),
-                                           total_mean = as.numeric(data_sec[[paste0(type,"_total_avg")]][1]))$top_shares
-          inter_output$top10[num]=top_1_pct(0.1, thresh_low_list = as.numeric(data_sec$thres_low),
-                                           mu_list = as.numeric(data_sec$mu),
-                                           sigma_list = as.numeric(data_sec$sigma),
-                                           tail_mean_list = as.numeric(data_sec$tail_mean),
-                                           total_mean = as.numeric(data_sec[[paste0(type,"_total_avg")]][1]))$top_shares
-          inter_output$top1[num]=top_1_pct(0.01, thresh_low_list = as.numeric(data_sec$thres_low),
-                                           mu_list = as.numeric(data_sec$mu),
-                                           sigma_list = as.numeric(data_sec$sigma),
-                                           tail_mean_list = as.numeric(data_sec$tail_mean),
-                                           total_mean = as.numeric(data_sec[[paste0(type,"_total_avg")]][1]))$top_shares
-          inter_output$top0_1[num]=top_1_pct(0.0001, thresh_low_list = as.numeric(data_sec$thres_low),
-                                           mu_list = as.numeric(data_sec$mu),
-                                           sigma_list = as.numeric(data_sec$sigma),
-                                           tail_mean_list = as.numeric(data_sec$tail_mean),
-                                           total_mean = as.numeric(data_sec[[paste0(type,"_total_avg")]][1]))$top_shares
+          # top x% share (all in the upper tail where piecewise fit is reliable)
+          top_args = list(thresh_low_list = as.numeric(data_sec$thres_low),
+                          mu_list         = as.numeric(data_sec$mu),
+                          sigma_list      = as.numeric(data_sec$sigma),
+                          tail_mean_list  = as.numeric(data_sec$tail_mean),
+                          total_mean      = as.numeric(data_sec[[paste0(type,"_total_avg")]][1]))
+          inter_output$top10[num]  = do.call(top_1_pct, c(list(top=0.10),  top_args))$top_shares
+          inter_output$top5[num]   = do.call(top_1_pct, c(list(top=0.05),  top_args))$top_shares
+          inter_output$top1[num]   = do.call(top_1_pct, c(list(top=0.01),  top_args))$top_shares
+          inter_output$top0_1[num] = do.call(top_1_pct, c(list(top=0.001), top_args))$top_shares
           # store piecewise fit (one row per bin) for later PDF plotting
           n_bins = nrow(data_sec)
           thres_low_all  = as.numeric(data_sec$thres_low)
@@ -335,14 +324,14 @@
     setkey(inter_output,sector,year)
 
     inter_output<-inter_output[number_bins!=1 & number_bins!=2]
-    inter_output$top0_1=as.numeric(inter_output$top0_1)
-    inter_output$top1=as.numeric(inter_output$top1)
-    inter_output$top10=as.numeric(inter_output$top10)
-    inter_output$top50=as.numeric(inter_output$top50)
+    inter_output$top0_1 = as.numeric(inter_output$top0_1)
+    inter_output$top1   = as.numeric(inter_output$top1)
+    inter_output$top5   = as.numeric(inter_output$top5)
+    inter_output$top10  = as.numeric(inter_output$top10)
 
     inter_output<-inter_output[,"number_bins":=NULL]
 
-    names(inter_output) <- c( "year","sector_main","tsh_receipts_ln_50pct","tsh_receipts_ln_10pct","tsh_receipts_ln_1pct","tsh_receipts_ln_0_1pct")
+    names(inter_output) <- c( "year","sector_main","tsh_receipts_ln_10pct","tsh_receipts_ln_5pct","tsh_receipts_ln_1pct","tsh_receipts_ln_0_1pct")
 
     fits = rbindlist(fits_list)
 
@@ -356,14 +345,14 @@
   data <- as.data.table(read_dta('/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings/data/raw/agg_brackets_receipts_R5.dta'))
   data <- data[year >= 1980]
   common_brackets <- c(0, 25e3, 100e3, 500e3, 1e6, 5e6, 10e6, 50e6)
-  # assign each row to the nearest common bracket at or below its thres_low,
-  # then sum number and breceipts within that group so no firms/receipts are lost
   data[, bracket := common_brackets[findInterval(thres_low, common_brackets)]]
+  # drop 0 bracket
+  data <- data[bracket > 0]
   data <- data[, .(number = sum(number), breceipts = sum(breceipts),
                    number_total = number_total[1], breceipts_total = breceipts_total[1]),
                by = .(year, bracket)]
   setnames(data, "bracket", "thres_low")
-  data[, sector_main := "All"]
+  data$sector_main = "All"
   result <- main_output(data_input=data,type_input="breceipts",sector_input="sector",name="agg_receipts")
   shares <- result$shares
   fits   <- result$fits
@@ -491,3 +480,90 @@
     p_overlay_slides = ggarrange(p_right_tail + theme(text = element_text(size = 24)), p_rest + theme(text =element_text(size = 24)), ncol = 1, nrow = 2, common.legend = TRUE, legend = "bottom")
     ggsave(file.path(out_dir, "lognormal_all_1980_vs_2018_slides.pdf"), p_overlay_slides, width = 10, height = 10)
   }
+
+  # ---- sales share time series by percentile group (area / flow chart) ----
+  ts_data = shares[shares$sector_main == "All" & shares$year >= 1980 & shares$year <= 2018, ]
+  ts_data$year = as.integer(ts_data$year)
+
+  ts_data$share_top0_1   = ts_data$tsh_receipts_ln_0_1pct
+  ts_data$share_0_1to5   = ts_data$tsh_receipts_ln_5pct  - ts_data$tsh_receipts_ln_0_1pct
+  ts_data$share_5to10    = ts_data$tsh_receipts_ln_10pct - ts_data$tsh_receipts_ln_5pct
+  ts_data$share_bottom90 = 1 - ts_data$tsh_receipts_ln_10pct
+
+  ts_long = reshape(
+    as.data.frame(ts_data[, c("year", "share_top0_1", "share_0_1to5", "share_5to10", "share_bottom90")]),
+    varying   = c("share_top0_1", "share_0_1to5", "share_5to10", "share_bottom90"),
+    v.names   = "share",
+    timevar   = "group",
+    times     = c("Top 0.1%", "0.1–5%", "5–10%", "Bottom 90%"),
+    direction = "long"
+  )
+  ts_long$group = factor(ts_long$group, levels = c("Bottom 90%", "5–10%", "0.1–5%", "Top 0.1%"))
+
+  palette_ts = viridis::viridis(4, option = "D", begin = 0.1, end = 0.9)
+
+  p_ts = ggplot(ts_long, aes(x = year, y = share, fill = group)) +
+    geom_area(position = "stack") +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    scale_fill_manual(values = palette_ts) +
+    labs(
+      x    = "",
+      y    = "Share of total receipts",
+      fill = ""
+    ) +
+    theme_common
+
+  ggsave(file.path(out_dir, "sales_share_timeseries.pdf"), p_ts, width = 10, height = 10)
+
+theme_common <- theme_minimal(base_size = 24) +
+  theme(
+    text = element_text(family = "serif", size = 24),
+    legend.position = "bottom"
+  )
+
+# plot % change in proportions relative to 1980
+# groups: top 0.1%, 0.1–5%, 5–10%, bottom 90%
+ts_rel = shares[year >= 1980 & year <= 2018 & sector_main == "All",
+                c("year", "tsh_receipts_ln_0_1pct", "tsh_receipts_ln_5pct", "tsh_receipts_ln_10pct")]
+ts_rel = as.data.frame(ts_rel)
+ts_rel$year = as.integer(ts_rel$year)
+
+ts_rel$share_top0_1  = ts_rel$tsh_receipts_ln_0_1pct
+ts_rel$share_0_1to5  = ts_rel$tsh_receipts_ln_5pct  - ts_rel$tsh_receipts_ln_0_1pct
+ts_rel$share_5to10   = ts_rel$tsh_receipts_ln_10pct - ts_rel$tsh_receipts_ln_5pct
+ts_rel$share_bot90   = 1 - ts_rel$tsh_receipts_ln_10pct
+
+# pivot to long
+ts_rel_long = reshape(
+  ts_rel[, c("year", "share_top0_1", "share_0_1to5", "share_5to10", "share_bot90")],
+  varying   = c("share_top0_1", "share_0_1to5", "share_5to10", "share_bot90"),
+  v.names   = "share",
+  timevar   = "group",
+  times     = c("Top 0.1%", "0.1–5%", "5–10%", "Bottom 90%"),
+  direction = "long"
+)
+ts_rel_long$group = factor(ts_rel_long$group,
+                           levels = c("Top 0.1%", "0.1–5%", "5–10%", "Bottom 90%"))
+
+# normalise to 1980
+base_1980 = ts_rel_long[ts_rel_long$year == 1980, c("group", "share")]
+names(base_1980)[2] = "share_1980"
+ts_rel_long = merge(ts_rel_long, base_1980, by = "group")
+ts_rel_long$share_rel = (ts_rel_long$share - ts_rel_long$share_1980) / ts_rel_long$share_1980
+
+palette_rel = viridis::viridis(4, option = "D", begin = 0.1, end = 0.9)
+
+p_rel = ggplot(ts_rel_long, aes(x = year, y = share_rel, color = group)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_line(linewidth = 2) +
+  geom_point(size = 3) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_color_manual(values = palette_rel) +
+  labs(
+    x     = "",
+    y     = "% change in receipts share relative to 1980",
+    color = ""
+  ) +
+  theme_common
+
+ggsave(file.path(out_dir, "sales_share_rel1980.pdf"), p_rel, width = 10, height = 7)

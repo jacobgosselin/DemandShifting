@@ -193,8 +193,8 @@ for i, scan in enumerate(SCANS):
 
         p_vals.append(pv)
         pct_neg_vals.append(pct_negative(m_grid, k_grid, z_grid, eqm))
-        top1pct_vals.append(top_pct_sales_share(m_grid, k_grid, z_grid, eqm, threshold=0.90))
-        sm, md, lg = sales_size_brackets(m_grid, k_grid, z_grid, eqm, lo=0.5, hi=1.5)
+        top1pct_vals.append(top_pct_sales_share(m_grid, k_grid, z_grid, eqm, threshold=0.99))
+        sm, md, lg = sales_size_brackets(m_grid, k_grid, z_grid, eqm, lo=0.5, hi=2)
         bracket_small.append(sm); bracket_mid.append(md); bracket_large.append(lg)
         _, earnings_cdf = est_dist(m_grid, k_grid, z_grid, eqm, "earnings")
         _, sales_cdf    = est_dist(m_grid, k_grid, z_grid, eqm, "revenue")
@@ -270,8 +270,10 @@ for i, scan in enumerate(SCANS):
     # Per-scan 2x2 figure (10x10 inches)
     # ------------------------------------------------------------------
 
-    fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
-    ax_a2, ax_b2, ax_c2, ax_d2 = axes2[0, 0], axes2[0, 1], axes2[1, 0], axes2[1, 1]
+    fig2, axes2 = plt.subplots(3, 2, figsize=(10, 15))
+    ax_a2, ax_b2 = axes2[0, 0], axes2[0, 1]
+    ax_c2, ax_d2 = axes2[1, 0], axes2[1, 1]
+    ax_e2, ax_f2 = axes2[2, 0], axes2[2, 1]
 
     ax_a2.plot(param_vals, pct_neg_vals, "o-", linewidth=3, markersize=10, color="black")
     ax_a2.set_xlabel(plabel)
@@ -303,34 +305,31 @@ for i, scan in enumerate(SCANS):
     ax_d2.legend(fontsize=16)
     ax_d2.set_ylim(0, 1)
 
-    fig2.tight_layout()
-    out_path_2x2 = os.path.join(FIGURES_DIR, f"alt_paths_{pname}.pdf")
-    fig2.savefig(out_path_2x2, dpi=150, bbox_inches="tight")
-    plt.close(fig2)
-    print(f"  Saved 2x2 figure → {out_path_2x2}")
-
-    # ------------------------------------------------------------------
-    # "Death of the middle-class firm" figure
-    # ------------------------------------------------------------------
-    fig_mc, ax_mc = plt.subplots(figsize=(8, 6))
-    ax_mc.plot(param_vals, bracket_small, "o-", linewidth=3, markersize=10,
+    # Bottom-left: sales brackets
+    ax_e2.plot(param_vals, bracket_small, "o-", linewidth=3, markersize=10,
                label=r"$< 0.5 \times$ median", color=palette_3[0])
-    ax_mc.plot(param_vals, bracket_mid,   "s-", linewidth=3, markersize=10,
-               label=r"$[0.5, 1.5] \times$ median", color=palette_3[1])
-    ax_mc.plot(param_vals, bracket_large, "^-", linewidth=3, markersize=10,
-               label=r"$> 1.5 \times$ median", color=palette_3[2])
-    ax_mc.set_xlabel(plabel)
-    ax_mc.set_ylabel("% of Firms")
-    ax_mc.set_title("Sales Brackets (Normalized by Median)")
-    ax_mc.legend(fontsize=16)
-    ax_mc.grid(True, alpha=0.3)
-    fig_mc.tight_layout()
-    out_mc = os.path.join(FIGURES_DIR, f"alt_paths_sales_brackets_{pname}.pdf")
-    fig_mc.savefig(out_mc, dpi=150, bbox_inches="tight")
-    plt.close(fig_mc)
-    print(f"  Saved sales-bracket figure → {out_mc}")
+    ax_e2.plot(param_vals, bracket_mid,   "s-", linewidth=3, markersize=10,
+               label=r"$[0.5, 2] \times$ median", color=palette_3[1])
+    ax_e2.plot(param_vals, bracket_large, "^-", linewidth=3, markersize=10,
+               label=r"$> 2 \times$ median", color=palette_3[2])
+    ax_e2.set_xlabel(plabel)
+    ax_e2.set_ylabel("% of Firms")
+    ax_e2.set_title("Sales Brackets (Normalized by Median)")
+    ax_e2.legend(fontsize=16)
+    ax_e2.grid(True, alpha=0.3)
 
-    _top1_data[pname] = (param_vals, top1pct_vals, plabel)
+    # Bottom-right: top 1% sales share
+    ax_f2.plot(param_vals, top1pct_vals, "o-", linewidth=3, markersize=10, color="black")
+    ax_f2.set_xlabel(plabel)
+    ax_f2.set_ylabel("Sales Share (%)")
+    ax_f2.set_title("Top 1% Sales Share")
+    ax_f2.grid(True, alpha=0.3)
+
+    fig2.tight_layout()
+    out_path_3x2 = os.path.join(FIGURES_DIR, f"alt_paths_{pname}.pdf")
+    fig2.savefig(out_path_3x2, dpi=150, bbox_inches="tight")
+    plt.close(fig2)
+    print(f"  Saved 3x2 figure → {out_path_3x2}")
 
 
 fig.tight_layout()
@@ -338,26 +337,3 @@ out_path = os.path.join(FIGURES_DIR, "alt_paths_combined.pdf")
 fig.savefig(out_path, dpi=150, bbox_inches="tight")
 plt.close(fig)
 print(f"\n  Saved combined figure → {out_path}")
-
-# -----------------------------------------------------------------------------
-# 1x4 figure: top-1% sales share across scans
-# -----------------------------------------------------------------------------
-
-_top1_scans = [(pname, pvs, t1, lbl) for pname, (pvs, t1, lbl) in _top1_data.items()]
-fig_top1, axes_top1 = plt.subplots(1, len(_top1_scans), figsize=(5 * len(_top1_scans), 5))
-if len(_top1_scans) == 1:
-    axes_top1 = [axes_top1]
-
-for j, (pname, pvs, t1_vals, plabel) in enumerate(_top1_scans):
-    ax = axes_top1[j]
-    ax.plot(pvs, t1_vals, "o-", linewidth=3, markersize=10, color="black")
-    ax.set_xlabel(plabel)
-    ax.set_ylabel("Sales Share (%)" if j == 0 else "")
-    ax.set_title("Top 10% Sales Share")
-    ax.grid(True, alpha=0.3)
-
-fig_top1.tight_layout()
-out_top1 = os.path.join(FIGURES_DIR, "alt_paths_top10pct_sales_share.pdf")
-fig_top1.savefig(out_top1, dpi=150, bbox_inches="tight")
-plt.close(fig_top1)
-print(f"\n  Saved top-10% sales share figure → {out_top1}")

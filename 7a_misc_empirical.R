@@ -1,16 +1,15 @@
 setwd("/Users/jacobgosselin/Library/CloudStorage/GoogleDrive-jacob.gosselin@u.northwestern.edu/My Drive/research_ideas/negative_earnings")
-# load libraries
+# remove all loaded libraries
+rm(list = ls())
 library(tidyr)
-library(dplyr)
 library(stringr)
 library(ggplot2)
 library(ggpubr)
 library(viridis)
 library(readr)
-# load stata data
 library(haven)
-library(ggpubr)
 library(fixest)
+library(dplyr)
 
 # load data ----------------------------------------------------
 
@@ -18,7 +17,7 @@ load("data/clean/analysis_data.RData")
 # filter to non-missing sga and non-biotech firms 
 analysis_data <- analysis_data %>% filter(biotech_flag == 0)
 
-palette_3 <- viridis::inferno(3, begin = 0.0, end = 0.9)
+palette_3 <- viridis::magma(3, begin = 0.0, end = 0.9)
 theme_common <- theme_minimal(base_size = 12) +
   theme(
     text = element_text(family = "serif", size = 12),
@@ -46,7 +45,33 @@ total_receipts <- merge(total_receipts, deflator, by = "year")
 total_receipts <- total_receipts %>%
   mutate(total_receipts = total_receipts / deflator * 100,
          total_receipts_rel_1980 = total_receipts / total_receipts[year == 1980]) %>%
-  select(year, total_receipts, total_receipts_rel_1980)
+  select(year, total_receipts, total_receipts_rel_1980) %>% 
+  mutate(date = as.integer(year))
+
+# add total receipts to analysis_data
+analysis_data <- merge(analysis_data, total_receipts, by = "date")
+# normalize sales by total receipts
+analysis_data$sale_rel_total_receipts <- analysis_data$sale / analysis_data$total_receipts
+
+overall_dist_hist <- ggplot(analysis_data, aes(x = sale_rel_total_receipts)) +
+  geom_histogram(data = analysis_data %>% filter(date >= 1980 & date <= 1984), aes(y = after_stat(count) / sum(after_stat(count)), fill = "1980-1984"), alpha = 0.5, bins = 100) +
+  geom_histogram(data = analysis_data %>% filter(date >= 2015 & date <= 2019), aes(y = after_stat(count) / sum(after_stat(count)), fill = "2015-2019"), alpha = 0.5, bins = 100) +
+  scale_fill_manual(values = c("1980-1984" = palette_3[1], "2015-2019" = palette_3[3])) +
+  scale_x_log10() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Sales / Total Receipts (log scale)", y = "Share", fill = NULL) +
+  theme_common
+
+right_tail_cutoff <- quantile(analysis_data$sale_rel_total_receipts, 0.9, na.rm = TRUE)
+n_early <- nrow(analysis_data %>% filter(date >= 1980 & date <= 1984, !is.na(sale_rel_total_receipts)))
+n_late  <- nrow(analysis_data %>% filter(date >= 2015 & date <= 2019, !is.na(sale_rel_total_receipts)))
+right_tail_hist <- ggplot(analysis_data, aes(x = sale_rel_total_receipts)) +
+  geom_histogram(data = analysis_data %>% filter(date >= 1980 & date <= 1984, sale_rel_total_receipts >= right_tail_cutoff), aes(y = after_stat(count) / n_early, fill = "1980-1984"), alpha = 0.5, bins = 50) +
+  geom_histogram(data = analysis_data %>% filter(date >= 2015 & date <= 2019, sale_rel_total_receipts >= right_tail_cutoff), aes(y = after_stat(count) / n_late, fill = "2015-2019"), alpha = 0.5, bins = 50) +
+  scale_fill_manual(values = c("1980-1984" = palette_3[1], "2015-2019" = palette_3[2])) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Sales / Total Receipts (top 5%)", y = "Share of All Firms", fill = NULL) +
+  theme_common
 
 # get total sales by top 500 firms and total sales by top 500 firms as share of total sales
 sales_top500 <- analysis_data %>%
@@ -215,59 +240,122 @@ ggsave("figures/empirical/neg_spell_bycohort_slides.pdf", width = 10, height = 1
 
 # negative earnings age coefficients ----------------------------------------------------
 
-# only date+sector FEs, no firm FEs
-analysis_data$age <- analysis_data$date - analysis_data$first_date
-neg_ebitda_reg <- feols(neg_ebitda ~ age + age:relevel(factor(date), ref = "1980") | date + sector, data = analysis_data)
-neg_ebitda_reg <- summary(neg_ebitda_reg)
-neg_profits_reg <- feols(neg_profits ~ age + age:relevel(factor(date), ref = "1980") | date + sector, data = analysis_data)
-neg_profits_reg <- summary(neg_profits_reg)
-# overlayed plot of coefficients +/- 95% confidence intervals
-extract_year_coefs <- function(reg) {
-  nms <- rownames(reg$coeftable)
-  idx <- grepl("^age:relevel", nms)
-  years <- as.numeric(gsub(".*\\)(\\d{4})$", "\\1", nms[idx]))
-  data.frame(year = years, coef = reg$coeftable[idx, "Estimate"], se = reg$coeftable[idx, "Std. Error"])
-}
+# # only date+sector FEs, no firm FEs
+# analysis_data$age <- analysis_data$date - analysis_data$first_date
+# neg_ebitda_reg <- feols(neg_ebitda ~ age + age:relevel(factor(date), ref = "1980") | date + sector, data = analysis_data)
+# neg_ebitda_reg <- summary(neg_ebitda_reg)
+# neg_profits_reg <- feols(neg_profits ~ age + age:relevel(factor(date), ref = "1980") | date + sector, data = analysis_data)
+# neg_profits_reg <- summary(neg_profits_reg)
+# # overlayed plot of coefficients +/- 95% confidence intervals
+# extract_year_coefs <- function(reg) {
+#   nms <- rownames(reg$coeftable)
+#   idx <- grepl("^age:relevel", nms)
+#   years <- as.numeric(gsub(".*\\)(\\d{4})$", "\\1", nms[idx]))
+#   data.frame(year = years, coef = reg$coeftable[idx, "Estimate"], se = reg$coeftable[idx, "Std. Error"])
+# }
 
-coef_data <- rbind(
-  cbind(extract_year_coefs(neg_ebitda_reg), variable = "neg_ebitda"),
-  cbind(extract_year_coefs(neg_profits_reg), variable = "neg_profits")
-) 
+# coef_data <- rbind(
+#   cbind(extract_year_coefs(neg_ebitda_reg), variable = "neg_ebitda"),
+#   cbind(extract_year_coefs(neg_profits_reg), variable = "neg_profits")
+# ) 
 
-palette_2 <- viridis::inferno(2, begin = 0.0, end = 0.9)
-theme_common <- theme_minimal(base_size = 18) +
-  theme(
-    text = element_text(family = "serif", size = 18),
-    legend.position = "bottom"
-  )
+# palette_2 <- viridis::inferno(2, begin = 0.0, end = 0.9)
+# theme_common <- theme_minimal(base_size = 18) +
+#   theme(
+#     text = element_text(family = "serif", size = 18),
+#     legend.position = "bottom"
+#   )
 
-without_firm_fes <- ggplot(coef_data, aes(x = year, y = coef, color = variable)) +
-  geom_line(linewidth = 1) +
-  geom_point() +
-  geom_errorbar(aes(ymin = coef - 1.65 * se, ymax = coef + 1.65 * se), width = 0.2) +
-  scale_color_manual(values = c("neg_ebitda" = palette_2[1], "neg_profits" = palette_2[2]), labels = c("Negative EBITDA", "Negative Profits")) +
-  labs(x = "Year", y = "Coefficient", color = "", title = "") +
+# without_firm_fes <- ggplot(coef_data, aes(x = year, y = coef, color = variable)) +
+#   geom_line(linewidth = 1) +
+#   geom_point() +
+#   geom_errorbar(aes(ymin = coef - 1.65 * se, ymax = coef + 1.65 * se), width = 0.2) +
+#   scale_color_manual(values = c("neg_ebitda" = palette_2[1], "neg_profits" = palette_2[2]), labels = c("Negative EBITDA", "Negative Profits")) +
+#   labs(x = "Year", y = "Coefficient", color = "", title = "") +
+#   theme_common
+
+# # add firm FEs
+# neg_ebitda_reg <- feols(neg_ebitda ~ age + age:relevel(factor(date), ref = "1980") | gvkey + date, data = analysis_data)
+# neg_ebitda_reg <- summary(neg_ebitda_reg)
+# neg_profits_reg <- feols(neg_profits ~ age + age:relevel(factor(date), ref = "1980") | gvkey + date, data = analysis_data)
+# neg_profits_reg <- summary(neg_profits_reg)
+# coef_data <- rbind(
+#   cbind(extract_year_coefs(neg_ebitda_reg), variable = "neg_ebitda"),
+#   cbind(extract_year_coefs(neg_profits_reg), variable = "neg_profits")
+# ) 
+
+# with_firm_fes <- ggplot(coef_data, aes(x = year, y = coef, color = variable)) +
+#   geom_line(linewidth = 1) +
+#   geom_point() +
+#   geom_errorbar(aes(ymin = coef - 1.65 * se, ymax = coef + 1.65 * se), width = 0.2) +
+#   scale_color_manual(values = c("neg_ebitda" = palette_2[1], "neg_profits" = palette_2[2]), labels = c("Negative EBITDA", "Negative Profits")) +
+#   labs(x = "Year", y = "Coefficient", color = "", title = "") +
+#   theme_common
+
+# ggarrange(without_firm_fes, with_firm_fes, nrow = 1, common.legend = TRUE, legend = "bottom")
+# ggsave("figures/empirical/neg_earnings_coefficients_dual.pdf", width = 8, height = 6)
+# ggsave("figures/empirical/neg_earnings_coefficients_solo.pdf", without_firm_fes, width = 8, height = 6)
+
+
+# checking irs trend vs declining filings ----------------------------------------------------
+
+irs_trend <- read.csv("data/clean/irs_corp_returns_combined.csv") %>%
+  mutate(perc_neg_earnings = perc_neg_earnings, c_corp_returns = total_returns) %>%
+  filter(year >= 1980 & year <= 2019) %>%
+  select(year, perc_neg_earnings, c_corp_returns)
+
+total_filings <- data_ma %>% filter(thres_low == "Total") %>% select(year, total_filings = number)
+irs_trend <- merge(irs_trend, total_filings, by = "year")
+irs_trend$perc_c_corp_filings <- irs_trend$c_corp_returns / irs_trend$total_filings
+reg_trend <- feols(perc_neg_earnings ~ perc_c_corp_filings, data = irs_trend)
+irs_trend$residuals <- reg_trend$residuals
+
+# normalize perc_neg_earnings and residuals as change relative to 1980
+irs_trend <- irs_trend %>%
+  mutate(perc_neg_earnings_rel_1980 = perc_neg_earnings - perc_neg_earnings[year == 1980],
+         residuals_rel_1980 = residuals - residuals[year == 1980], 
+         perc_c_corp_filings_rel_1980 = perc_c_corp_filings - perc_c_corp_filings[year == 1980])
+
+ggplot(irs_trend, aes(x = year)) +
+  geom_line(aes(y = perc_neg_earnings, color = "% No Net Income (C-Corps)"), linewidth = 2) +
+  geom_line(aes(y = perc_c_corp_filings, color = "% C-Corp Filings"), linewidth = 2) +
+  labs(x = "Year", y = "Change Relative to 1980", title = "", color = "") +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_color_manual(values = c("% No Net Income (C-Corps)" = palette_2[1], "% C-Corp Filings" = palette_2[2])) +
   theme_common
 
-# add firm FEs
-neg_ebitda_reg <- feols(neg_ebitda ~ age + age:relevel(factor(date), ref = "1980") | gvkey + date, data = analysis_data)
-neg_ebitda_reg <- summary(neg_ebitda_reg)
-neg_profits_reg <- feols(neg_profits ~ age + age:relevel(factor(date), ref = "1980") | gvkey + date, data = analysis_data)
-neg_profits_reg <- summary(neg_profits_reg)
-coef_data <- rbind(
-  cbind(extract_year_coefs(neg_ebitda_reg), variable = "neg_ebitda"),
-  cbind(extract_year_coefs(neg_profits_reg), variable = "neg_profits")
-) 
+ggsave("figures/empirical/irs_trend_vs_c_corp_filings.pdf", width = 8, height = 6)
 
-with_firm_fes <- ggplot(coef_data, aes(x = year, y = coef, color = variable)) +
-  geom_line(linewidth = 1) +
-  geom_point() +
-  geom_errorbar(aes(ymin = coef - 1.65 * se, ymax = coef + 1.65 * se), width = 0.2) +
-  scale_color_manual(values = c("neg_ebitda" = palette_2[1], "neg_profits" = palette_2[2]), labels = c("Negative EBITDA", "Negative Profits")) +
-  labs(x = "Year", y = "Coefficient", color = "", title = "") +
+# composition control: residualize on log changes in total_returns ----------------------------------------------------
+# Idea: changes in perc_neg_earnings may partly reflect changing composition of c-corps
+# (e.g. fewer large/profitable corps filing). Regress year-over-year changes in
+# perc_neg_earnings on log changes in total_returns, then reconstruct a residual
+# trend by cumulating the residuals from 1980.
+
+irs_composition <- irs_trend %>%
+  arrange(year) %>%
+  mutate(
+    d_perc_neg  = perc_neg_earnings - lag(perc_neg_earnings),
+    d_log_total = log(c_corp_returns) - log(lag(c_corp_returns))
+  ) %>%
+  filter(!is.na(d_perc_neg))   # drops 1980 (no lag)
+
+reg_composition <- feols(d_perc_neg ~ d_log_total, data = irs_composition)
+irs_composition$resid_d_perc_neg <- reg_composition$residuals
+
+# cumulate residuals to reconstruct a level trend; anchor at 0 in 1980
+resid_trend <- irs_composition %>%
+  select(year, resid_d_perc_neg) %>%
+  bind_rows(data.frame(year = 1980, resid_d_perc_neg = 0)) %>%
+  arrange(year) %>%
+  mutate(resid_trend = cumsum(resid_d_perc_neg))
+
+irs_trend <- merge(irs_trend, resid_trend %>% select(year, resid_trend), by = "year")
+
+ggplot(irs_trend, aes(x = year)) +
+  geom_line(aes(y = perc_neg_earnings_rel_1980, color = "Raw trend"), linewidth = 2) +
+  geom_line(aes(y = resid_trend, color = "Residual (composition-controlled)"), linewidth = 2, linetype = "dashed") +
+  scale_color_manual(values = c("Raw trend" = palette_2[1], "Residual (composition-controlled)" = palette_2[2])) +
+  labs(x = "Year", y = "Change Relative to 1980", color = "",
+       title = "IRS: % Negative Earnings, Raw vs. Composition-Controlled") +
   theme_common
-
-ggarrange(without_firm_fes, with_firm_fes, nrow = 1, common.legend = TRUE, legend = "bottom")
-ggsave("figures/empirical/neg_earnings_coefficients_dual.pdf", width = 8, height = 6)
-ggsave("figures/empirical/neg_earnings_coefficients_solo.pdf", without_firm_fes, width = 8, height = 6)
-
